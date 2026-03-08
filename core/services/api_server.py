@@ -543,8 +543,8 @@ class APIServer:
             async def play_tts_audio():
                 try:
                     total_size = len(audio_data)
-                    # 只有超过 2MB 才分块，小文件直接发送
-                    CHUNK_THRESHOLD = 2 * 1024 * 1024  # 2MB
+                    # 只有超过 1MB 才分块，小文件直接发送
+                    CHUNK_THRESHOLD = 1 * 1024 * 1024  # 1MB
                     CHUNK_SIZE = 1 * 1024 * 1024  # 1MB (实测稳定的块大小)
 
                     if total_size <= CHUNK_THRESHOLD:

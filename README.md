@@ -380,7 +380,7 @@ APP_CONFIG = {
         "session_key": "main",  # 会话标识
         "tts_enabled": False,  # 启用 Doubao TTS 播放 OpenClaw 回复
         "blocking_playback": False,  # TTS 播放是否阻塞等待完成 (默认 False)
-        "ack_timeout": 10,  # 发送消息时等待 OpenClaw accepted 回执的超时时间（秒）
+        "ack_timeout": 30,  # 发送消息时等待 OpenClaw accepted 回执的超时时间（秒）
         "tts_speaker": "zh_female_cancan_mars_bigtts",  # 可选：自定义音色，不设置则使用 tts.doubao.default_speaker
     },
 }

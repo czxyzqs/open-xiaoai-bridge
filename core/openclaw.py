@@ -11,7 +11,7 @@ Configuration (priority: env vars > config file > defaults):
                 "session_key": "main",
                 "tts_enabled": False,  # Enable Doubao TTS to play OpenClaw responses
                 "blocking_playback": False,  # Non-blocking by default
-                "ack_timeout": 10,  # Seconds to wait for accepted ack
+                "ack_timeout": 30,  # Seconds to wait for accepted ack
             }
         }
 
@@ -77,7 +77,7 @@ class OpenClawManager:
     _response_events: dict[str, asyncio.Future] = {}
     _response_texts: dict[str, str] = {}
     _response_timeout = 120  # seconds to wait for agent response
-    _ack_timeout = 10  # seconds to wait for request accepted response
+    _ack_timeout = 60  # seconds to wait for request accepted response
 
     @classmethod
     def initialize_from_config(cls, enabled: bool | None = None):
@@ -105,7 +105,7 @@ class OpenClawManager:
         cfg_tts_enabled = config.get("tts_enabled", False)
         cfg_blocking_playback = config.get("blocking_playback", False)
         cfg_tts_speaker = config.get("tts_speaker", None)
-        cfg_ack_timeout = config.get("ack_timeout", 10)
+        cfg_ack_timeout = config.get("ack_timeout", 30)
 
         # Enable/disable: parameter > environment variable > default (False)
         if enabled is not None:
@@ -558,10 +558,7 @@ class OpenClawManager:
     def _signal_response_ready(cls, run_id: str):
         """Mark response waiter as ready in a thread-safe way."""
         waiter = cls._response_events.get(run_id)
-        if not waiter:
-            logger.warning(f"[OpenClaw] ⚠️ No event found for runId={run_id}, active runs: {list(cls._response_events.keys())}")
-            return
-        if waiter.done():
+        if not waiter or waiter.done():
             return
         fut_loop = waiter.get_loop()
         fut_loop.call_soon_threadsafe(waiter.set_result, None)
@@ -584,9 +581,9 @@ class OpenClawManager:
                 response_text = output.get("text", "")
 
                 if run_id and response_text:
-                    logger.info(f"[OpenClaw] ✅ Final response for {run_id}: {response_text[:100]}...")
+                    if run_id in cls._response_events:
+                        logger.info(f"[OpenClaw] ✅ Final response for {run_id}: {response_text[:100]}...")
                     cls._response_texts[run_id] = response_text
-                    logger.debug(f"[OpenClaw] Setting event for runId={run_id}")
                     cls._signal_response_ready(run_id)
 
             elif event_name == "run.output":
@@ -605,9 +602,9 @@ class OpenClawManager:
                 text = payload.get("text", "")
 
                 if run_id and text:
-                    logger.info(f"[OpenClaw] ✅ Text event for {run_id}: {text[:100]}...")
+                    if run_id in cls._response_events:
+                        logger.info(f"[OpenClaw] ✅ Text event for {run_id}: {text[:100]}...")
                     cls._response_texts[run_id] = text
-                    logger.debug(f"[OpenClaw] Setting event for runId={run_id}")
                     cls._signal_response_ready(run_id)
 
             elif event_name == "agent":
@@ -630,14 +627,12 @@ class OpenClawManager:
 
                 elif stream == "lifecycle":
                     phase = data.get("phase", "")
-                    logger.debug(f"[OpenClaw] Agent lifecycle event for {run_id}: phase={phase}")
 
                     if phase == "end":
                         # Agent run completed
                         response_text = cls._response_texts.get(run_id, "")
-                        if run_id and response_text:
-                            logger.info(f"[OpenClaw] ✅ Agent completed for {run_id}: {response_text[:100]}...")
-                        logger.debug(f"[OpenClaw] Setting event for runId={run_id}")
+                        if run_id and response_text and run_id in cls._response_events:
+                            logger.info(f"[OpenClaw] ✅ Agent completed for {run_id}: {response_text}")
                         cls._signal_response_ready(run_id)
 
         except Exception as e:

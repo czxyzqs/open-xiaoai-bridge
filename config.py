@@ -1,9 +1,11 @@
 import asyncio
 import socket
-import requests
+import subprocess
 import sys
 import time
-import subprocess
+
+import requests
+
 
 async def before_wakeup(speaker, text, source, xiaozhi, xiaoai, app):
     """
@@ -46,33 +48,6 @@ async def after_wakeup(speaker):
     退出唤醒状态
     """
     await speaker.play(url="http://127.0.0.1:8080/bye.wav")
-
-
-def _ensure_dependencies(requirements: list[str]):
-    """检查并安装缺失的 Python 依赖包。"""
-    import importlib.util
-    missing_packages = [
-        pkg for pkg in requirements if not importlib.util.find_spec(pkg)
-    ]
-
-    if not missing_packages:
-        return
-
-    print(f"检测到缺失的依赖: {missing_packages}，正在尝试安装...")
-    # 假设脚本在一个虚拟环境目录的父目录中运行
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    python_executable = os.path.join(script_dir, '.venv', "bin", 'python')
-    if not os.path.exists(python_executable):
-        # 如果找不到虚拟环境的 python，就使用系统默认的 python
-        import sys
-        python_executable = sys.executable
-        print(f"未找到虚拟环境，使用系统 Python: {python_executable}")
-
-    subprocess.run([python_executable, "-m", "ensurepip"], check=False)
-    subprocess.run(
-        [python_executable, "-m", "pip", "install", *missing_packages],
-        check=True)
-    print("依赖安装完成。")
 
 APP_CONFIG = {
     "wakeup": {

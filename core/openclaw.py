@@ -673,7 +673,7 @@ class OpenClawManager:
                     logger.debug(f"[OpenClaw] Playing response via TTS: {response_text[:100]}...")
                     await cls._play_response_with_tts(response_text)
                 else:
-                    logger.info(f"[OpenClaw] Received response (TTS disabled): {response_text[:100]}...")
+                    logger.debug(f"[OpenClaw] Received response (TTS disabled): {response_text[:100]}...")
             else:
                 logger.warning(f"[OpenClaw] No response text received for run {run_id}")
 

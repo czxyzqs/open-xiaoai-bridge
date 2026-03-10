@@ -10,6 +10,7 @@ import numpy as np
 import soundfile as sf
 from typing import Optional, AsyncGenerator
 from scipy import signal
+from core.utils.logger import logger
 
 
 class DoubaoTTS:
@@ -556,6 +557,7 @@ class DoubaoTTS:
         headers = self._get_headers()
         payload = self._build_payload(text, format, sample_rate, speed, context_texts=context_texts, emotion=emotion)
 
+        logger.info(f"[DoubaoTTS] Synthesizing text: {text[:300]}...")
         session = requests.Session()
         response = None
         try:

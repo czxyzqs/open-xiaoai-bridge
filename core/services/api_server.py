@@ -549,7 +549,7 @@ class APIServer:
 
                     if total_size <= CHUNK_THRESHOLD:
                         # 小文件直接发送
-                        logger.info(f"[APIServer] Playing TTS audio directly: {total_size} bytes")
+                        logger.debug(f"[APIServer] Playing TTS audio directly: {total_size} bytes")
                         await speaker.play(buffer=audio_data, blocking=True)
                     else:
                         # 大文件分块发送
@@ -561,7 +561,7 @@ class APIServer:
                             offset += len(chunk)
                             await asyncio.sleep(0.05)
 
-                    logger.info(f"[APIServer] Finished playing TTS audio")
+                    logger.debug(f"[APIServer] Finished playing TTS audio")
                     return True
                 except Exception as e:
                     logger.error(f"[APIServer] Error playing TTS audio: {e}")

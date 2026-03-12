@@ -25,7 +25,6 @@ from core.services.protocols.typing import (
     DeviceState,
     EventType,
 )
-from config import APP_CONFIG
 from core.openclaw import OpenClawManager
 from core.services.api_server import APIServer
 
@@ -143,9 +142,8 @@ class MainApp:
         # Start API Server if enabled
         if self._enable_api_server:
             import os
-            api_cfg = APP_CONFIG.get("api_server", {})
-            host = os.environ.get("API_SERVER_HOST") or api_cfg.get("host", "127.0.0.1")
-            port = int(os.environ.get("API_SERVER_PORT") or api_cfg.get("port", 9092))
+            host = os.environ.get("API_SERVER_HOST", "127.0.0.1")
+            port = int(os.environ.get("API_SERVER_PORT", 9092))
             self.api_server = APIServer(host=host, port=port)
             asyncio.run_coroutine_threadsafe(self.api_server.start(), self.loop)
 

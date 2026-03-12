@@ -6,6 +6,8 @@
 
 > 本项目由 [Open-XiaoAI](https://github.com/idootop/open-xiaoai) 的 `examples/xiaozhi/` 演进而来，在保留小智 AI 接入能力的基础上，新增 OpenClaw 集成、HTTP API Server 等功能，已成为独立项目发展。
 
+**演示视频：** [https://www.bilibili.com/video/BV1DHcBz1Ex7](https://www.bilibili.com/video/BV1DHcBz1Ex7)
+
 ## 功能特性
 
 - 🤖 **小爱音箱接入小智 AI**（可选）
@@ -274,7 +276,7 @@ docker run -it --rm \
   -p 9092:9092 \
   -e XIAOZHI_ENABLE=1 \
   -e API_SERVER_ENABLE=1 \
-  -e OPENCLAW_ENABLED=true \
+  -e OPENCLAW_ENABLED=1 \
   -e OPENCLAW_URL=ws://your-server:18789 \
   -e OPENCLAW_TOKEN=your_token \
   -v $(pwd)/config.py:/app/config.py \
@@ -303,10 +305,10 @@ XIAOZHI_ENABLE=1 uv run main.py
 API_SERVER_ENABLE=1 uv run main.py
 
 # 开启 OpenClaw 集成
-OPENCLAW_ENABLED=true uv run main.py
+OPENCLAW_ENABLED=1 uv run main.py
 
 # 全功能模式（小爱 + 小智 AI + API Server + OpenClaw）
-XIAOZHI_ENABLE=1 API_SERVER_ENABLE=1 OPENCLAW_ENABLED=true uv run main.py
+XIAOZHI_ENABLE=1 API_SERVER_ENABLE=1 OPENCLAW_ENABLED=1 uv run main.py
 ```
 
 ### 环境变量配置
@@ -315,7 +317,9 @@ XIAOZHI_ENABLE=1 API_SERVER_ENABLE=1 OPENCLAW_ENABLED=true uv run main.py
 |---------|------|------|
 | `XIAOZHI_ENABLE` | 连接小智 AI 服务 | `XIAOZHI_ENABLE=1` |
 | `API_SERVER_ENABLE` | 开启 HTTP API 服务（端口 9092） | `API_SERVER_ENABLE=1` |
-| `OPENCLAW_ENABLED` | 启用 OpenClaw 集成 | `OPENCLAW_ENABLED=true` |
+| `API_SERVER_HOST` | API Server 监听地址（默认 127.0.0.1） | `API_SERVER_HOST=0.0.0.0` |
+| `API_SERVER_PORT` | API Server 监听端口（默认 9092） | `API_SERVER_PORT=9092` |
+| `OPENCLAW_ENABLED` | 启用 OpenClaw 集成 | `OPENCLAW_ENABLED=1` |
 | `OPENCLAW_URL` | OpenClaw WebSocket 地址 | `OPENCLAW_URL=ws://localhost:18789` |
 | `OPENCLAW_TOKEN` | OpenClaw 认证令牌 | `OPENCLAW_TOKEN=your_token` |
 | `OPENCLAW_SESSION_KEY` | OpenClaw 会话标识 | `OPENCLAW_SESSION_KEY=main` |
@@ -389,7 +393,7 @@ APP_CONFIG = {
 或通过环境变量配置：
 
 ```bash
-OPENCLAW_ENABLED=true OPENCLAW_URL=ws://your-server:18789 OPENCLAW_TOKEN=xxx uv run main.py
+OPENCLAW_ENABLED=1 OPENCLAW_URL=ws://your-server:18789 OPENCLAW_TOKEN=xxx uv run main.py
 ```
 
 ### 在 before_wakeup 中使用
@@ -518,7 +522,7 @@ APP_CONFIG = {
 或通过环境变量：
 
 ```bash
-OPENCLAW_ENABLED=true OPENCLAW_URL=ws://your-server:18789 OPENCLAW_TOKEN=xxx python main.py
+OPENCLAW_ENABLED=1 OPENCLAW_URL=ws://your-server:18789 OPENCLAW_TOKEN=xxx python main.py
 ```
 
 #### Q：如何通过 OpenClaw 发送指令？

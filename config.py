@@ -107,17 +107,12 @@ APP_CONFIG = {
             "default_speaker": "zh_female_vv_uranus_bigtts",  # 音色 https://www.volcengine.com/docs/6561/1257544?lang=zh
         }
     },
-    # API Server Configuration
-    "api_server": {
-        "host": "127.0.0.1",  # API server listen host
-        "port": 9092,       # API server listen port
-    },
     # OpenClaw Configuration
     "openclaw": {
         "url": "ws://127.0.0.1:18789",  # OpenClaw WebSocket 地址
         "token": "",  # OpenClaw 认证令牌
         "session_key": "main", # 会话标识
-        "tts_enabled": True,  # 是否启用 TTS 播放
+        "tts_enabled": False,  # 是否启用 TTS 播放回复
         "tts_speed": 1.0,  # TTS 语速 (0.5-2.0, 1.0 为正常语速)
         "response_timeout": 120,  # 等待 OpenClaw agent 响应的超时时间（秒）
     },

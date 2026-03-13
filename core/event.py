@@ -170,9 +170,12 @@ class __EventManager:
 
     async def wakeup(self, text, source):
         before_wakeup = APP_CONFIG["wakeup"]["before_wakeup"]
-        get_kws().pause()  # 暂停 KWS 检测
+        kws = get_kws()
+        if kws:
+            kws.pause()  # 暂停 KWS 检测
         wakeup = await before_wakeup(get_speaker(), text, source, get_xiaozhi(), get_xiaoai(), get_app())
-        get_kws().resume()  # 恢复 KWS 检测
+        if kws:
+            kws.resume()  # 恢复 KWS 检测
         if wakeup:
             self.on_wakeup()
 

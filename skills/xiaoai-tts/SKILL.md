@@ -23,14 +23,14 @@ OPENXIAOAI_BASE_URL="http://192.168.x.x:9092"  # OpenXiaoAI 服务地址
 # 播放文字
 python3 scripts/play_text.py "你好，小爱音箱"
 
-# 非阻塞模式（立即返回）
-python3 scripts/play_text.py "你好" --no-blocking
+# 阻塞模式（等待播放完成）
+python3 scripts/play_text.py "你好" --blocking
 
 # 指定超时时间
 python3 scripts/play_text.py "你好" --timeout 30000
 ```
 
-### 云端音色（Doubao TTS）
+### 云端音色（Doubao TTS）🌟 推荐优先使用 🌟
 
 ```bash
 # 基础调用（默认音色）

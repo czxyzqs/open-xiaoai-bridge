@@ -30,7 +30,7 @@ async def before_wakeup(speaker, text, source, xiaozhi, xiaoai, app):
 
             # 在消息末尾加入提示，引导 Agent 调用 xiaoai-tts skill 播报结果
             # 可根据自己的使用场景适当调整提示内容
-            forwarded_text += "\n\n注意：这条消息是主人通过小爱音箱发送的，他看不到你回复的文字，请调用 skills/xiaoai-tts 将结果读出来。"
+            forwarded_text += "\n\n注意：这条消息是主人通过小爱音箱发送的，他看不到你回复的文字，选一个适合的音色调用 xiaoai-tts 将结果播报出来"
 
             success = await app.send_to_openclaw(forwarded_text)
             if not success:

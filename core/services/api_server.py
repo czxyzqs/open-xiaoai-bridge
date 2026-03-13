@@ -628,12 +628,12 @@ class APIServer:
                             "1.0": {
                                 "count": len(DoubaoTTS.VOICES_1_0),
                                 "description": "豆包语音合成模型1.0",
-                                "sample_voices": list(DoubaoTTS.VOICES_1_0.keys())[:5]
+                                "voices": DoubaoTTS.VOICES_1_0
                             },
                             "2.0": {
                                 "count": len(DoubaoTTS.VOICES_2_0),
                                 "description": "豆包语音合成模型2.0 - 支持情感变化、指令遵循、ASMR",
-                                "sample_voices": list(DoubaoTTS.VOICES_2_0.keys())[:5]
+                                "voices": DoubaoTTS.VOICES_2_0
                             }
                         },
                         "total_voices": len(voices)

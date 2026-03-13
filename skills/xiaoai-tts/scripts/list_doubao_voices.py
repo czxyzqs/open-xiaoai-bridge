@@ -32,38 +32,38 @@ def main():
     args = parser.parse_args()
     
     try:
-        result = list_voices(version=args.version)
+        version = args.version if args.version else "all"        
+        result = list_voices(version=version)
         
         if not result.get("success"):
             print(f"❌ 获取失败: {result}")
             sys.exit(1)
         
         data = result.get("data", {})
-        
-        # 显示 2.0 音色
-        if "2.0" in data:
-            print("\n🎙️  2.0 音色 (seed-tts-2.0) - 高质量推荐")
+
+        # version=all: returns versions with full voice dicts
+        if "versions" in data:
+            versions = data["versions"]
+            for ver in ["2.0", "1.0"]:
+                if ver not in versions:
+                    continue
+                v = versions[ver]
+                print(f"\n🎙️  {ver} 音色 - {v.get('description', '')} (共 {v.get('count', 0)} 个)")
+                print("-" * 70)
+                for voice_type, name in v.get("voices", {}).items():
+                    emotion = "✨多情感" if "emo" in voice_type else ""
+                    print(f"  {name:16} | {voice_type} {emotion}")
+            print(f"\n共 {data.get('total_voices', 0)} 个音色")
+
+        # version=1.0 or 2.0: returns full voices dict
+        elif "voices" in data:
+            ver = data.get("version", "")
+            voices = data["voices"]
+            print(f"\n🎙️  {ver} 音色 (共 {data.get('count', 0)} 个)")
             print("-" * 70)
-            for voice in data["2.0"]:
-                name = voice.get("name", "")
-                voice_type = voice.get("voice_type", "")
-                desc = voice.get("description", "")
-                print(f"  {name:12} | {voice_type:45} | {desc}")
-        
-        # 显示 1.0 音色
-        if "1.0" in data:
-            print("\n🎙️  1.0 音色 (seed-tts-1.0)")
-            print("-" * 70)
-            for voice in data["1.0"]:
-                name = voice.get("name", "")
-                voice_type = voice.get("voice_type", "")
-                desc = voice.get("description", "")
+            for voice_type, name in voices.items():
                 emotion = "✨多情感" if "emo" in voice_type else ""
-                print(f"  {name:12} | {voice_type:45} | {desc} {emotion}")
-        
-        print("\n💡 使用示例:")
-        print(f'  python3 tts_doubao.py "你好" --speaker zh_female_vv_uranus_bigtts')
-        print(f'  python3 tts_doubao.py "你好" --speaker zh_male_lengkugege_emo_v2_mars_bigtts --emotion happy')
+                print(f"  {name:16} | {voice_type} {emotion}")
         
     except Exception as e:
         print(f"❌ 错误: {e}")

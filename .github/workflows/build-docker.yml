@@ -1,4 +1,4 @@
-name: Build and Push XiaoAI Bridge Docker Image
+name: Build and Push Open-XiaoAI Bridge Docker Image
 
 on:
   push:

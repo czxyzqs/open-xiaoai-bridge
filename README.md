@@ -473,7 +473,7 @@ OPENCLAW_ENABLED=1 python main.py
 这是正常的首次设备配对流程。保持 `open-xiaoai-bridge` 在线，然后到 OpenClaw UI 批准这台设备：
 
 ```text
-Nodes -> Devices -> 找到对应设备 -> Approve
+Nodes -> Devices -> 找到对应设备（默认名称为 "Open-Xiaoai Bridge"） -> Approve
 ```
 
 如果容器部署使用了 `identity_path`，记得把该目录挂载为持久化卷；否则容器重建后可能会被识别为一台新设备，需要再次批准。

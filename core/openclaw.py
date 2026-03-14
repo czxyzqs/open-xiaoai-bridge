@@ -303,7 +303,7 @@ class OpenClawManager:
 
             client_meta = {
                 "id": "gateway-client",
-                "displayName": "Xiaoai Bridge",
+                "displayName": "Open-Xiaoai Bridge",
                 "version": "1.0.0",
                 "platform": "python",
                 "mode": "backend",

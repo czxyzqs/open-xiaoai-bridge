@@ -1,4 +1,4 @@
-"""OpenClaw integration manager for xiaozhi.
+"""OpenClaw integration manager for xiaoai.
 
 Configuration:
 
@@ -878,31 +878,46 @@ class OpenClawManager:
                 speaker=speaker_id,
             )
 
-            # Synthesize in thread pool to not block
-            loop = asyncio.get_event_loop()
-            audio_data = await loop.run_in_executor(
-                None, lambda: tts.synthesize(text, speed=cls._tts_speed)
-            )
-
-            if not audio_data:
-                logger.error("[OpenClaw] TTS synthesis returned empty audio")
-                return
-
-            logger.debug(f"[OpenClaw] TTS synthesized: {len(audio_data)} bytes")
-
-            # Play through speaker
+            # Stream synthesis and play chunks as they arrive (or fallback to non-stream)
+            use_stream = tts_config.get("stream", False)
             speaker = get_speaker()
             if not speaker:
                 logger.error("[OpenClaw] Speaker not available")
                 return
 
-            # Play audio buffer (blocking or non-blocking based on config)
-            blocking = cls._blocking_playback
-            await speaker.play(buffer=audio_data, blocking=blocking)
-            if blocking:
-                logger.debug("[OpenClaw] Response playback completed")
+            if use_stream:
+                import open_xiaoai_server
+                try:
+                    await open_xiaoai_server.tts_stream_play(
+                        text,
+                        app_id=app_id,
+                        access_key=access_key,
+                        resource_id=tts.resource_id,
+                        speaker=speaker_id,
+                        speed=cls._tts_speed,
+                        format=tts.audio_format,
+                        sample_rate=24000,
+                    )
+                    logger.debug("[OpenClaw] TTS stream playback completed")
+                except Exception as e:
+                    logger.error(f"[OpenClaw] TTS stream error: {e}")
             else:
-                logger.debug("[OpenClaw] Response playback started (non-blocking)")
+                loop = asyncio.get_event_loop()
+                audio_data = await loop.run_in_executor(
+                    None, lambda: tts.synthesize(text, speed=cls._tts_speed)
+                )
+
+                if not audio_data:
+                    logger.error("[OpenClaw] TTS synthesis returned empty audio")
+                    return
+
+                logger.debug(f"[OpenClaw] TTS synthesized: {len(audio_data)} bytes")
+                blocking = cls._blocking_playback
+                await speaker.play(buffer=audio_data, blocking=blocking)
+                if blocking:
+                    logger.debug("[OpenClaw] Response playback completed")
+                else:
+                    logger.debug("[OpenClaw] Response playback started (non-blocking)")
 
         except Exception as e:
             logger.error(f"[OpenClaw] Error playing response with TTS: {e}")

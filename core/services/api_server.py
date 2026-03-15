@@ -519,71 +519,85 @@ class APIServer:
             )
             logger.info(f"[APIServer] Doubao TTS: speaker={speaker_id}, resource_id={tts.resource_id}")
 
-            # Synthesize in thread pool to not block
-            try:
-                loop = asyncio.get_event_loop()
-                audio_data = await loop.run_in_executor(
-                    None, lambda: tts.synthesize(text, speed=speed, context_texts=context_texts, emotion=emotion)
-                )
+            use_stream = tts_config.get("stream", False)
+            loop = asyncio.get_event_loop()
 
-                if not audio_data:
+            if use_stream:
+                import open_xiaoai_server
+
+                async def play_tts_stream():
+                    try:
+                        await open_xiaoai_server.tts_stream_play(
+                            text,
+                            app_id=app_id,
+                            access_key=access_key,
+                            resource_id=tts.resource_id,
+                            speaker=speaker_id,
+                            speed=speed,
+                            format=tts.audio_format,
+                            sample_rate=24000,
+                            emotion=emotion,
+                            context_texts=context_texts,
+                        )
+                    except Exception as e:
+                        logger.error(f"[APIServer] TTS stream error: {e}")
+                        raise
+
+                if blocking:
+                    await play_tts_stream()
+                else:
+                    asyncio.create_task(play_tts_stream())
+            else:
+                try:
+                    audio_data = await loop.run_in_executor(
+                        None, lambda: tts.synthesize(text, speed=speed, context_texts=context_texts, emotion=emotion)
+                    )
+                    if not audio_data:
+                        return web.json_response(
+                            {"success": False, "error": "TTS synthesis returned empty audio"},
+                            status=500
+                        )
+                except Exception as e:
+                    logger.error(f"[APIServer] TTS synthesis error: {e}")
                     return web.json_response(
-                        {"success": False, "error": "TTS synthesis returned empty audio"},
+                        {"success": False, "error": f"TTS synthesis failed: {str(e)}"},
                         status=500
                     )
-            except Exception as e:
-                logger.error(f"[APIServer] TTS synthesis error: {e}")
-                return web.json_response(
-                    {"success": False, "error": f"TTS synthesis failed: {str(e)}"},
-                    status=500
-                )
 
-            logger.info(f"[APIServer] Doubao TTS synthesized: {len(audio_data)} bytes, speaker={speaker_id}")
+                logger.info(f"[APIServer] Doubao TTS synthesized: {len(audio_data)} bytes, speaker={speaker_id}")
 
-            # Play the synthesized audio (chunked only if large)
-            async def play_tts_audio():
-                try:
-                    total_size = len(audio_data)
-                    # 只有超过 1MB 才分块，小文件直接发送
-                    CHUNK_THRESHOLD = 1 * 1024 * 1024  # 1MB
-                    CHUNK_SIZE = 1 * 1024 * 1024  # 1MB (实测稳定的块大小)
+                async def play_tts_audio():
+                    try:
+                        total_size = len(audio_data)
+                        CHUNK_THRESHOLD = 1 * 1024 * 1024  # 1MB
+                        CHUNK_SIZE = 1 * 1024 * 1024
 
-                    if total_size <= CHUNK_THRESHOLD:
-                        # 小文件直接发送
-                        logger.debug(f"[APIServer] Playing TTS audio directly: {total_size} bytes")
-                        await speaker.play(buffer=audio_data, blocking=True)
-                    else:
-                        # 大文件分块发送
-                        offset = 0
-                        logger.info(f"[APIServer] Playing TTS audio in chunks: {total_size} bytes, chunk_size={CHUNK_SIZE}")
-                        while offset < total_size:
-                            chunk = audio_data[offset:offset + CHUNK_SIZE]
-                            await speaker.play(buffer=chunk, blocking=False)
-                            offset += len(chunk)
-                            await asyncio.sleep(0.05)
+                        if total_size <= CHUNK_THRESHOLD:
+                            logger.debug(f"[APIServer] Playing TTS audio directly: {total_size} bytes")
+                            await speaker.play(buffer=audio_data, blocking=True)
+                        else:
+                            offset = 0
+                            logger.info(f"[APIServer] Playing TTS audio in chunks: {total_size} bytes, chunk_size={CHUNK_SIZE}")
+                            while offset < total_size:
+                                chunk = audio_data[offset:offset + CHUNK_SIZE]
+                                await speaker.play(buffer=chunk, blocking=False)
+                                offset += len(chunk)
+                                await asyncio.sleep(0.05)
 
-                    logger.debug(f"[APIServer] Finished playing TTS audio")
-                    return True
-                except Exception as e:
-                    logger.error(f"[APIServer] Error playing TTS audio: {e}")
-                    return False
+                        logger.debug(f"[APIServer] Finished playing TTS audio")
+                    except Exception as e:
+                        logger.error(f"[APIServer] Error playing TTS audio: {e}")
 
-            if blocking:
-                success = await play_tts_audio()
-                return web.json_response({
-                    "success": success,
-                    "message": f"TTS played: {text[:50]}..." if len(text) > 50 else f"TTS played: {text}",
-                    "speaker_id": speaker_id,
-                    "audio_size": len(audio_data)
-                })
-            else:
-                asyncio.create_task(play_tts_audio())
-                return web.json_response({
-                    "success": True,
-                    "message": f"TTS playing in background: {text[:50]}..." if len(text) > 50 else f"TTS playing: {text}",
-                    "speaker_id": speaker_id,
-                    "audio_size": len(audio_data)
-                })
+                if blocking:
+                    await play_tts_audio()
+                else:
+                    asyncio.create_task(play_tts_audio())
+
+            return web.json_response({
+                "success": True,
+                "message": f"TTS played: {text[:50]}..." if len(text) > 50 else f"TTS played: {text}",
+                "speaker_id": speaker_id,
+            })
 
         except json.JSONDecodeError:
             return web.json_response(
@@ -599,7 +613,7 @@ class APIServer:
 
     async def handle_tts_voices(self, request: web.Request) -> web.Response:
         """
-        GET /api/tts/voices
+        GET /api/tts/doubao_voices
         Get available TTS voices for Doubao
 
         Query params:

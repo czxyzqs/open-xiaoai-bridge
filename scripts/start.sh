@@ -1,10 +1,13 @@
 #!/bin/bash
 #
 # Open-XiaoAI Bridge 启动脚本
-# 用法: ./start.sh
+# 用法: ./scripts/start.sh
 #
 
 set -e
+
+# cd to project root (parent of scripts/)
+cd "$(dirname "$0")/.."
 
 # 颜色定义
 RED='\033[0;31m'
@@ -144,7 +147,7 @@ if errors:
     for e in errors:
         print(f'⚠ 警告: {e}')
     print('   文档: https://www.volcengine.com/docs/6561/1598757')
-    print('   提示: 没有配置也可以使用，但 TTS 功能将无法使用')
+    print('   提示: 没有配置也可以使用，但 doubao TTS 功能将无法使用')
 else:
     print('✓ 豆包 TTS 已配置')
 " 2>/dev/null || echo -e "${YELLOW}⚠ 配置检查失败${NC}"

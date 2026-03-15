@@ -201,10 +201,15 @@ cd open-xiaoai-bridge
 **3. 启动服务**
 
 ```bash
-uv sync --locked
+# 按需设置环境变量后启动
+API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 ./scripts/start.sh
+```
 
-# 按需开启功能模块
-API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 uv run main.py
+脚本会自动检查依赖、下载模型、生成关键词文件并启动服务。也可以手动启动：
+
+```bash
+uv sync
+uv run main.py
 ```
 
 ### 环境变量配置
@@ -508,6 +513,7 @@ APP_CONFIG = {
             "app_id": "your_app_id",
             "access_key": "your_access_key",
             "default_speaker": "zh_female_xiaohe_uranus_bigtts",
+            "stream": False,  # 流式合成，跑稳定后可改为 True 以降低首音延迟
         }
     },
 }
@@ -593,7 +599,23 @@ APP_CONFIG = {
 
 `tts_enabled: True` 是服务端自动合成方案，配置简单，但只能使用固定音色，无法让 Agent 控制播报内容。
 
-#### Q：OpenClaw 连接失败怎么排查？
+#### Q：TTS 合成支持流式播放吗？
+
+支持。通过 `tts.doubao.stream` 开关控制：
+
+```python
+"tts": {
+    "doubao": {
+        "stream": False,  # 默认：等待整段音频合成完毕后再播放，兼容性更好
+        # "stream": True,  # 流式：边合成边播放，首音延迟更低，稳定后可切换
+    }
+}
+```
+
+- `stream: False`（默认）：等所有音频合成完成后一次性播放，行为更可预期
+- `stream: True`：流式模式，由 Rust 原生实现（HTTP 流式请求 → symphonia MP3 帧对齐解码 → PCM → WebSocket 推送），首音延迟明显更低；如遇问题切回 `False` 即可
+
+
 
 1. 确认 OpenClaw Gateway 已启动，地址和端口（默认 `18789`）可访问
 2. 检查 `config.py` 或环境变量中的 `url` / `token` 是否正确

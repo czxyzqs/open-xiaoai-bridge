@@ -2,7 +2,10 @@
 chcp 65001 >nul
 
 REM Open-XiaoAI Bridge 启动脚本 (Windows)
-REM 用法: start.bat
+REM 用法: scripts\start.bat
+
+REM cd to project root (parent of scripts\)
+cd /d "%~dp0\.."
 
 echo ========================================
 echo   Open-XiaoAI Bridge 启动脚本

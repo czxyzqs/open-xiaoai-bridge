@@ -18,6 +18,7 @@ dist
 *.so
 *.dylib
 *.dll
+*.dSYM/
 
 # Debug
 *.log

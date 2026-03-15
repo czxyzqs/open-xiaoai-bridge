@@ -32,6 +32,7 @@ def play_audio(audio_data: bytes):
         tmp_path = f.name
     try:
         # Wrap raw PCM in a WAV container so afplay/aplay can handle it
+        print(f"  [*] Saving audio to {tmp_path}")
         with wave.open(tmp_path, "wb") as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)  # 16-bit = 2 bytes
@@ -77,9 +78,7 @@ def get_tts():
     return DoubaoTTS(app_id=app_id, access_key=access_key, speaker=speaker, resource_id=resource_id), tts_config
 
 
-# TEXT = '央视财经频道《经济半小时》两会特别节目《中国经济向新行：智能经济活力奔涌》播出，聚焦我国人工智能大模型已进入全球第一梯队，而阿里千问APP作为AI助手的典型代表，正以"AI办事"的创新模式，深刻重塑大众的日常生活。'
-TEXT = "你好，我是Moos, 检测到室内温度已升至 28℃，当前室外温度 32℃。建议开启空调制冷模式，是否立即执行？您也可以通过语音指令调整目标温度。"
-
+TEXT = '央视财经频道《经济半小时》两会特别节目《中国经济向新行：智能经济活力奔涌》播出，聚焦我国人工智能大模型已进入全球第一梯队，而阿里千问APP作为AI助手的典型代表，正以"AI办事"的创新模式，深刻重塑大众的日常生活。'
 
 def run_normal(play: bool = True):
     """Normal mode: synthesize MP3 and optionally play."""

@@ -8,7 +8,7 @@ import io
 import requests
 import numpy as np
 import soundfile as sf
-from typing import Optional, AsyncGenerator
+from typing import Optional, Generator
 from scipy import signal
 from core.utils.logger import logger
 
@@ -557,7 +557,7 @@ class DoubaoTTS:
 
         Args:
             text: 要合成的文本
-            format: 音频格式 (mp3, wav, opus)，默认使用实例的 audio_format
+            format: 音频格式 (mp3, wav, ogg_opus)，默认使用实例的 audio_format
             sample_rate: 采样率
             speed: 语速 (0.8-2.0)
             emotion: 情感参数 (如: happy, sad, angry, excited 等)
@@ -628,7 +628,8 @@ class DoubaoTTS:
         sample_rate: int = 24000,
         speed: float = 1.0,
         context_texts: list = None,
-    ) -> AsyncGenerator[bytes, None]:
+        emotion: str = None,
+    ) -> Generator[bytes, None, None]:
         """
         流式合成语音
 
@@ -638,7 +639,7 @@ class DoubaoTTS:
         if format is None:
             format = self.audio_format
         headers = self._get_headers()
-        payload = self._build_payload(text, format, sample_rate, speed, context_texts=context_texts)
+        payload = self._build_payload(text, format, sample_rate, speed, context_texts=context_texts, emotion=emotion)
 
         session = requests.Session()
         response = None

@@ -25,14 +25,11 @@ WORKDIR /app
 # 复制项目文件
 COPY . .
 
-# 构建
-RUN cargo build --release
-
 # 安装锁定依赖（保持 pyproject.toml 与 uv.lock 一致）
 RUN uv sync --locked --no-install-project --no-editable
 
-# 构建 wheel 并安装
-RUN uv run maturin build --release && uv remove maturin
+# 构建 Rust 扩展并安装
+RUN uv run maturin build --release --manifest-path native/Cargo.toml && uv remove maturin
 
 
 FROM python:3.12-slim

@@ -95,6 +95,7 @@ APP_CONFIG = {
             "app_id": "xxxx",         # 你的 App ID
             "access_key": "xxxxxx",       # 你的 Access Key
             "default_speaker": "zh_female_vv_uranus_bigtts",  # 音色 https://www.volcengine.com/docs/6561/1257544?lang=zh
+            "stream": False,  # 流式合成（边合成边播放，首音延迟更低），跑稳定后可设为 True
         }
     },
     # OpenClaw Configuration

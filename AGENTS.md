@@ -9,10 +9,13 @@
 open-xiaoai-bridge/
 ├── main.py               # 程序入口
 ├── config.py             # 用户配置文件（唤醒词、TTS、OpenClaw 等）
-├── src/                  # Rust 扩展源码（maturin 编译）
-│   ├── lib.rs            # Rust Python 扩展入口
-│   ├── server.rs         # 音频服务实现
-│   └── python.rs         # PyO3 Python 绑定
+├── native/               # Rust 原生扩展源码（maturin 编译）
+│   ├── src/
+│   │   ├── lib.rs        # Rust Python 扩展入口
+│   │   ├── server.rs     # 音频服务实现
+│   │   ├── python.rs     # PyO3 Python 绑定
+│   │   └── tts/          # TTS 流式合成（MP3 解码 + 播放）
+│   └── Cargo.toml
 ├── core/                 # Python 核心源码
 │   ├── app.py            # MainApp: 应用主控制器
 │   ├── xiaoai.py         # XiaoAI: 小爱音箱接口（事件、TTS、控制）
@@ -85,11 +88,12 @@ OpenClaw 网关客户端：
 - `before_wakeup`: 唤醒前回调（在 config.py 中配置）
 - `after_wakeup`: 唤醒后回调
 
-### 7. Rust 扩展 (src/)
+### 7. Rust 原生扩展 (native/)
 通过 [maturin](https://www.maturin.rs/) 编译的 Rust Python 扩展，提供高性能底层服务：
 - `lib.rs`: 扩展入口，使用 PyO3 绑定
 - `server.rs`: WebSocket 音频服务器（端口 4399）
 - `python.rs`: Python API 暴露（`open_xiaoai_server` 模块）
+- `tts/`: TTS 流式合成模块（HTTP 流式请求 → symphonia MP3 解码 → PCM 播放）
 
 **编译产物**: `open_xiaoai_server` Python 模块，供 `main.py` 调用
 
@@ -166,7 +170,7 @@ MainApp.instance(enable_xiaozhi=False)
 - 当 `XIAOZHI_ENABLE=0` 时，必须允许跳过 KWS 相关初始化。
 - `core/services/audio/kws/keywords.py` 在仅小爱模式下应直接退出成功，不能因为缺少 `tokens.txt`、`bpe.model` 或 `sherpa_onnx` 依赖导致主程序启动失败。
 - 这里的“跳过”仅指跳过关键词预生成步骤，并继续启动主服务。
-- `start.sh` / `start.bat` 在仅小爱模式下也不应检查、下载或读取 `core/models/` 下的 KWS/VAD 模型文件。
+- `scripts/start.sh` / `scripts/start.bat` 在仅小爱模式下也不应检查、下载或读取 `core/models/` 下的 KWS/VAD 模型文件。
 - 当 `XIAOZHI_ENABLE=1` 时，关键词预生成失败应视为启动失败，不能继续进入主服务。
 
 ### 模式 2: 小智 AI 模式

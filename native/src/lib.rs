@@ -8,6 +8,7 @@ use server::AppServer;
 pub mod macros;
 pub mod python;
 pub mod server;
+pub mod tts;
 
 #[pyfunction]
 fn on_output_data(py: Python, data: Py<PyBytes>) -> PyResult<Bound<PyAny>> {
@@ -52,5 +53,6 @@ fn open_xiaoai_server(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(on_output_data, &m)?)?;
     m.add_function(wrap_pyfunction!(run_shell, &m)?)?;
     crate::python::init_module(&m)?;
+    crate::tts::init_module(&m)?;
     Ok(())
 }

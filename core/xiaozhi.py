@@ -63,6 +63,18 @@ class XiaoZhi:
         """Set display reference."""
         self._display = display
 
+    @property
+    def device_state(self):
+        """Proxy device state from app for backward compatibility."""
+        if self._app:
+            return self._app.device_state
+        return None
+
+    def set_device_state(self, state):
+        """Delegate device state updates to app for backward compatibility."""
+        if self._app:
+            self._app.set_device_state(state)
+
     async def connect(self):
         """Connect to XiaoZhi server."""
         from core.services.protocols.websocket_protocol import WebsocketProtocol

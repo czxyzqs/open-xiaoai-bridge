@@ -117,10 +117,14 @@ class __EventManager:
         speaker = get_speaker()
         xiaozhi = get_xiaozhi()
 
+        if not xiaozhi or not xiaozhi.protocol:
+            logger.warning("[Wakeup] XiaoZhi is not ready, skip wakeup session")
+            return
+
         # 先取消之前的 VAD 检测和音频输入输出流
         xiaozhi.set_device_state(DeviceState.IDLE)
-        
-        await xiaozhi.protocol.send_abort_speaking(AbortReason.ABORT)
+
+        await xiaozhi.send_abort_speaking(AbortReason.ABORT)
 
         # 小爱同学唤醒时，直接打断
         if self.current_step == Step.on_interrupt:
@@ -144,7 +148,8 @@ class __EventManager:
             xiaozhi.set_device_state(DeviceState.IDLE)
             logger.info("👋 已退出唤醒")
             after_wakeup = self.config.get_app_config("wakeup.after_wakeup")
-            await after_wakeup(speaker)
+            if after_wakeup:
+                await after_wakeup(speaker)
             return
         if step != Step.on_speech:
             logger.warning(f"{step} != {Step.on_speech} -- timeout")
@@ -154,7 +159,7 @@ class __EventManager:
         logger.debug(f"开始说话...., speech_buffer size: {len(speech_buffer)}")
         set_speech_frames(speech_buffer)
         codec.input_stream.start_stream()  # 开启录音
-        await xiaozhi.protocol.send_start_listening(ListeningMode.MANUAL)
+        await xiaozhi.send_start_listening(ListeningMode.MANUAL)
         xiaozhi.set_device_state(DeviceState.LISTENING)
 
         # 等待说话结束
@@ -166,7 +171,7 @@ class __EventManager:
 
         # 停止说话
         logger.info("---说话结束---")
-        await xiaozhi.protocol.send_stop_listening()
+        await xiaozhi.send_stop_listening()
         xiaozhi.set_device_state(DeviceState.IDLE)
 
     async def wakeup(self, text, source):

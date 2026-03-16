@@ -130,10 +130,17 @@ class XiaoAI:
                                 cls.conversing = False
                                 cls.current_retries = 0
                                 await speaker.play(text=cls.exit_prompt)
-            elif  (line
-                and line.get("header", {}).get("namespace") == "AudioPlayer"):
-                logger.info("[XiaoAI] 收到播放音频事件，立即退出连续对话模式")
-                cls.stop_conversation()
+            elif line and line.get("header", {}).get("namespace") == "AudioPlayer":
+                header_name = line.get("header", {}).get("name")
+                if header_name in {"Play", "PlayList", "PushAudio", "Template.PlayInfo"}:
+                    logger.info(
+                        f"[XiaoAI] 收到播放器指令 {header_name}，退出连续对话模式"
+                    )
+                    cls.stop_conversation()
+                else:
+                    logger.debug(
+                        f"[XiaoAI] 忽略 AudioPlayer 事件，避免误退出连续对话: {header_name}"
+                    )
         elif event_type == "playing":
             playing_status = event_data.lower()
             

@@ -1,4 +1,3 @@
-import importlib
 import re
 import socket
 import threading
@@ -8,6 +7,11 @@ from typing import Any, Callable, Optional
 
 import requests
 
+from core.utils.config_loader import (
+    ensure_config_module_loaded,
+    get_config_path,
+    load_config_module,
+)
 from core.utils.file import read_file, write_file
 
 
@@ -30,9 +34,10 @@ class ConfigManager:
         self._initialized = True
         self._state_lock = threading.RLock()
         self._reload_listeners: list[Callable[[dict[str, Any], dict[str, Any]], None]] = []
-        self._config_path = Path(__file__).resolve().parents[2] / "config.py"
+        self._config_path = get_config_path()
         self._config_module_name = "config"
 
+        ensure_config_module_loaded()
         self._app_config = self._load_app_config()
 
         self._config = {
@@ -48,7 +53,7 @@ class ConfigManager:
 
     def _load_app_config(self) -> dict[str, Any]:
         """加载 config.py 中的 APP_CONFIG。"""
-        module = importlib.import_module(self._config_module_name)
+        module = ensure_config_module_loaded()
         app_config = getattr(module, "APP_CONFIG", None)
         if not isinstance(app_config, dict):
             raise ValueError("config.APP_CONFIG must be a dict")
@@ -84,8 +89,7 @@ class ConfigManager:
     def reload_app_config(self) -> bool:
         """重新加载 config.py，并同步运行时配置。"""
         with self._state_lock:
-            module = importlib.import_module(self._config_module_name)
-            module = importlib.reload(module)
+            module = load_config_module(force_reload=True)
             next_config = getattr(module, "APP_CONFIG", None)
             if not isinstance(next_config, dict):
                 raise ValueError("config.APP_CONFIG must be a dict")

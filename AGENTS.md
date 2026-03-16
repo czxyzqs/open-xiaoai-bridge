@@ -129,8 +129,10 @@ APP_CONFIG = {
         "doubao": {
             "app_id": "...",
             "access_key": "...",
-            "audio_format": "auto",        # 可选：mp3 / pcm / auto
-            "auto_pcm_max_chars": 120,     # 可选：audio_format=auto 时的 PCM 阈值
+            "stream": True,                # 推荐默认值：边合成边播放
+            "audio_format": "pcm",         # 推荐默认值：局域网稳定环境下首音更快、播放更顺
+            # "audio_format": "auto",      # 可选：短文本用 pcm，长文本用 mp3
+            # "auto_pcm_max_chars": 120,   # 可选：audio_format=auto 时的 PCM 阈值
         }
     }
 }

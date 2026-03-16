@@ -33,6 +33,9 @@ def add_local_venv_site_packages() -> None:
 add_local_venv_site_packages()
 
 import open_xiaoai_server
+from core.utils.config_loader import ensure_config_module_loaded
+
+ensure_config_module_loaded()
 from config import APP_CONFIG
 from core.services.tts.doubao import DoubaoTTS
 

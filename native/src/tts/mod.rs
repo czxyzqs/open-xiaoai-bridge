@@ -125,29 +125,23 @@ pub fn tts_stream_play(
         let mut decoder = StreamingDecoder::new(&format, sample_rate);
         let mut playback_buffer = PcmPlaybackBuffer::new(sample_rate);
         let mut accumulated_size: usize = 0;
-        let mut first_audio_chunk_logged = false;
-        let mut first_buffered_chunk_logged = false;
+        let mut first_audio_chunk_ms: Option<u128> = None;
+        let mut playback_started_ms: Option<u128> = None;
+        let mut total_encoded_bytes: usize = 0;
+        let mut total_pcm_bytes: usize = 0;
 
         while let Some(chunk) = rx.recv().await {
-            if !first_audio_chunk_logged {
-                crate::pylog!(
-                    "[TTS] Stream first encoded chunk arrived after {} ms ({} bytes)",
-                    started_at.elapsed().as_millis(),
-                    chunk.len()
-                );
-                first_audio_chunk_logged = true;
+            if first_audio_chunk_ms.is_none() {
+                first_audio_chunk_ms = Some(started_at.elapsed().as_millis());
             }
+            total_encoded_bytes += chunk.len();
 
             if is_pcm_passthrough {
                 playback_buffer.push(&chunk);
+                total_pcm_bytes += chunk.len();
                 for pcm_chunk in playback_buffer.drain_ready_chunks() {
-                    if !first_buffered_chunk_logged {
-                        crate::pylog!(
-                            "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
-                            started_at.elapsed().as_millis(),
-                            playback_buffer.startup_bytes
-                        );
-                        first_buffered_chunk_logged = true;
+                    if playback_started_ms.is_none() {
+                        playback_started_ms = Some(started_at.elapsed().as_millis());
                     }
                     send_pcm(pcm_chunk).await;
                 }
@@ -160,15 +154,11 @@ pub fn tts_stream_play(
             if accumulated_size >= STREAM_BUFFER_THRESHOLD {
                 match decoder.decode_all() {
                     Ok(pcm) if !pcm.is_empty() => {
+                        total_pcm_bytes += pcm.len();
                         playback_buffer.push(&pcm);
                         for pcm_chunk in playback_buffer.drain_ready_chunks() {
-                            if !first_buffered_chunk_logged {
-                                crate::pylog!(
-                                    "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
-                                    started_at.elapsed().as_millis(),
-                                    playback_buffer.startup_bytes
-                                );
-                                first_buffered_chunk_logged = true;
+                            if playback_started_ms.is_none() {
+                                playback_started_ms = Some(started_at.elapsed().as_millis());
                             }
                             send_pcm(pcm_chunk).await;
                         }
@@ -195,13 +185,8 @@ pub fn tts_stream_play(
         }
 
         for pcm_chunk in playback_buffer.drain_remaining() {
-            if !first_buffered_chunk_logged {
-                crate::pylog!(
-                    "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
-                    started_at.elapsed().as_millis(),
-                    playback_buffer.queue.len()
-                );
-                first_buffered_chunk_logged = true;
+            if playback_started_ms.is_none() {
+                playback_started_ms = Some(started_at.elapsed().as_millis());
             }
             send_pcm(pcm_chunk).await;
         }
@@ -211,8 +196,13 @@ pub fn tts_stream_play(
         }
 
         crate::pylog!(
-            "[TTS] Stream playback completed in {} ms",
-            started_at.elapsed().as_millis()
+            "[TTS] Stream summary: format={}, first_chunk={} ms, playback_start={} ms, total={} ms, encoded={} bytes, pcm={} bytes",
+            format,
+            first_audio_chunk_ms.unwrap_or(0),
+            playback_started_ms.unwrap_or(0),
+            started_at.elapsed().as_millis(),
+            total_encoded_bytes,
+            total_pcm_bytes
         );
         Ok(())
     })
@@ -242,28 +232,25 @@ pub fn tts_play(
             .fetch_audio(&text, &format, sample_rate, speed, context_texts, emotion)
             .await
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
+        let encoded_audio_len = encoded_audio.len();
 
-        crate::pylog!(
-            "[TTS] Non-stream fetch completed in {} ms, synthesized {} bytes ({})",
-            started_at.elapsed().as_millis(),
-            encoded_audio.len(),
-            format
-        );
+        let fetch_completed_ms = started_at.elapsed().as_millis();
 
         let pcm = decode_audio_to_pcm(&encoded_audio, &format, sample_rate)
             .map_err(|e| pyo3::exceptions::PyRuntimeError::new_err(e))?;
-
-        crate::pylog!(
-            "[TTS] Non-stream PCM ready after {} ms ({} bytes)",
-            started_at.elapsed().as_millis(),
-            pcm.len()
-        );
+        let pcm_len = pcm.len();
+        let pcm_ready_ms = started_at.elapsed().as_millis();
 
         send_pcm(pcm).await;
 
         crate::pylog!(
-            "[TTS] Non-stream playback completed in {} ms",
-            started_at.elapsed().as_millis()
+            "[TTS] Non-stream summary: format={}, fetch={} ms, pcm_ready={} ms, total={} ms, encoded={} bytes, pcm={} bytes",
+            format,
+            fetch_completed_ms,
+            pcm_ready_ms,
+            started_at.elapsed().as_millis(),
+            encoded_audio_len,
+            pcm_len
         );
         Ok(())
     })

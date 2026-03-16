@@ -34,6 +34,9 @@ def add_local_venv_site_packages() -> None:
 add_local_venv_site_packages()
 
 import open_xiaoai_server
+from core.utils.config_loader import ensure_config_module_loaded
+
+ensure_config_module_loaded()
 from config import APP_CONFIG
 from core.services.tts.doubao import DoubaoTTS
 
@@ -84,6 +87,11 @@ def avg(values: list[float | int | None]) -> float | None:
     return float(statistics.mean(filtered))
 
 
+def estimate_pcm_duration_ms(pcm_bytes: int, sample_rate: int) -> float:
+    bytes_per_second = sample_rate * 2
+    return pcm_bytes * 1000.0 / bytes_per_second
+
+
 async def run_once(audio_format: str, text: str) -> dict:
     tts = build_tts(audio_format)
     result = await open_xiaoai_server.tts_stream_collect(
@@ -122,7 +130,8 @@ async def main() -> None:
             print(
                 f"  round {round_index}: first_encoded={stats.get('first_encoded_ms')} ms, "
                 f"first_pcm={stats.get('first_pcm_ms')} ms, total={stats.get('total_ms')} ms, "
-                f"encoded={stats.get('encoded_bytes')} B, pcm={stats.get('pcm_bytes')} B"
+                f"encoded={stats.get('encoded_bytes')} B, pcm={stats.get('pcm_bytes')} B, "
+                f"pcm_duration={estimate_pcm_duration_ms(stats.get('pcm_bytes', 0), stats.get('sample_rate', 24000)):.1f} ms"
             )
         print()
 
@@ -131,7 +140,8 @@ async def main() -> None:
     print("-" * 72)
     print(
         f"{'format':<8} {'first_encoded_avg':>18} {'first_pcm_avg':>16} "
-        f"{'total_avg':>12} {'encoded_avg':>14} {'pcm_avg':>12}"
+        f"{'total_avg':>12} {'encoded_avg':>14} {'pcm_avg':>12} "
+        f"{'pcm_duration_avg':>18} {'speech_estimate':>18}"
     )
     for audio_format in formats:
         rows = summaries[audio_format]
@@ -140,13 +150,27 @@ async def main() -> None:
         total_avg = avg([row.get("total_ms") for row in rows])
         encoded_avg = avg([row.get("encoded_bytes") for row in rows])
         pcm_avg = avg([row.get("pcm_bytes") for row in rows])
+        pcm_duration_avg = avg(
+            [
+                estimate_pcm_duration_ms(
+                    row.get("pcm_bytes", 0),
+                    row.get("sample_rate", 24000),
+                )
+                for row in rows
+            ]
+        )
+        speech_estimate = None
+        if total_avg is not None and pcm_duration_avg is not None:
+            speech_estimate = total_avg - pcm_duration_avg
         print(
             f"{audio_format:<8} "
             f"{first_encoded_avg:>18.1f} "
             f"{first_pcm_avg:>16.1f} "
             f"{total_avg:>12.1f} "
             f"{encoded_avg:>14.1f} "
-            f"{pcm_avg:>12.1f}"
+            f"{pcm_avg:>12.1f} "
+            f"{pcm_duration_avg:>18.1f} "
+            f"{speech_estimate:>18.1f}"
         )
 
     if "mp3" in summaries and "pcm" in summaries:

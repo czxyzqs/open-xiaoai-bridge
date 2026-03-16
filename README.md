@@ -215,6 +215,12 @@ uv sync
 uv run main.py
 ```
 
+如果想指定其他配置文件路径，可以通过环境变量 `CONFIG_PATH` 覆盖默认的项目根目录 `config.py`：
+
+```bash
+CONFIG_PATH=/path/to/custom_config.py uv run main.py
+```
+
 ### 环境变量配置
 
 | 环境变量            | 说明                                  | 示例                      |
@@ -528,7 +534,8 @@ APP_CONFIG = {
             "app_id": "your_app_id",
             "access_key": "your_access_key",
             "default_speaker": "zh_female_xiaohe_uranus_bigtts",
-            "stream": False,  # 流式合成，跑稳定后可改为 True 以降低首音延迟
+            "stream": True,   # 推荐默认值：边合成边播放
+            "audio_format": "pcm",  # 推荐默认值：局域网稳定环境下首音更快、播放更顺
         }
     },
 }
@@ -615,19 +622,20 @@ APP_CONFIG = {
 ```python
 "tts": {
     "doubao": {
-        "stream": False,  # 默认：等待整段音频合成完毕后再播放，兼容性更好
-        # "stream": True,  # 流式：边合成边播放，首音延迟更低，稳定后可切换
+        "stream": True,  # 推荐默认值：流式播放，首音延迟更低
+        "audio_format": "pcm",  # 推荐默认值：局域网稳定环境下首音更快、播放更顺
         # "audio_format": "auto",  # 可选：短文本用 pcm，长文本用 mp3
         # "auto_pcm_max_chars": 120,  # audio_format=auto 时，短文本阈值
     }
 }
 ```
 
-- `stream: False`（默认）：等所有音频合成完成后一次性播放，行为更可预期
-- `stream: True`：流式模式，由 Rust 原生实现（HTTP 流式请求 → symphonia MP3 帧对齐解码 → PCM → WebSocket 推送），首音延迟明显更低；如遇问题切回 `False` 即可
-- `audio_format: "pcm"`：首音更快、流式通常更稳，但长文本总耗时更高
+- 推荐组合：`stream: True + audio_format: "pcm"`。在局域网稳定环境下，通常首音更快、播放更连贯
+- `stream: False`：等所有音频合成完成后一次性播放，行为更可预期；如果流式链路异常可切回此模式
+- `stream: True`：流式模式，由 Rust 原生实现（HTTP 流式请求 → 解码/PCM 直通 → WebSocket 推送），首音延迟明显更低
+- `audio_format: "pcm"`：推荐默认格式。首音更快、流式通常更稳，但长文本总耗时可能更高
 - `audio_format: "mp3"`：整体传输效率更高，长文本通常更早结束
-- `audio_format: "auto"`：推荐折中方案。短文本自动选 `pcm`，长文本自动选 `mp3`
+- `audio_format: "auto"`：可选折中方案。短文本自动选 `pcm`，长文本自动选 `mp3`
 
 如果只是想验证“豆包流式拉流 + Rust 流式解码”是否跑通，而不依赖小爱音箱，可以直接运行：
 

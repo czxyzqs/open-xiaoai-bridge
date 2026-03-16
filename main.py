@@ -22,6 +22,10 @@ if sys.platform in ("darwin", "linux"):
     except ImportError:
         pass
 
+from core.utils.config_loader import ensure_config_module_loaded
+
+config_path = ensure_config_module_loaded()
+
 from core.app import MainApp
 from core.utils.logger import logger
 
@@ -48,6 +52,7 @@ def setup_config():
     logger.info(f"[Main] Config: XIAOZHI_ENABLE={os.environ.get('XIAOZHI_ENABLE', 'not set')}, "
                 f"API_SERVER_ENABLE={os.environ.get('API_SERVER_ENABLE', 'not set')}, "
                 f"OPENCLAW_ENABLED={os.environ.get('OPENCLAW_ENABLED', 'not set')}")
+    logger.info(f"[Main] Using config file: {config_path}")
 
     # 打印模块启用情况
     logger.info("[Main] 模块启用情况:")

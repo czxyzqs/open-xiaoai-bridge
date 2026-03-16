@@ -41,6 +41,9 @@ import tempfile
 import base64
 import requests
 import open_xiaoai_server
+from core.utils.config_loader import ensure_config_module_loaded
+
+ensure_config_module_loaded()
 from config import APP_CONFIG
 from core.services.tts.doubao import DoubaoTTS
 

@@ -48,7 +48,15 @@ impl PythonManager {
     }
 
     pub fn log(&self, text: String) {
-        let _ = self.eval(&format!("print('{}')", text));
+        Python::with_gil(|py| {
+            let result: PyResult<()> = (|| {
+                let module = py.import("core.utils.logger")?;
+                let logger = module.getattr("logger")?;
+                logger.call_method1("info", (text.as_str(),))?;
+                Ok(())
+            })();
+            let _ = result;
+        });
     }
 
     pub fn eval(&self, script: &str) -> PyResult<()> {

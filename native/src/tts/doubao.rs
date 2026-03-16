@@ -122,6 +122,14 @@ impl DoubaoStreamClient {
         emotion: Option<String>,
         tx: mpsc::Sender<Vec<u8>>,
     ) -> Result<(), String> {
+        crate::pylog!(
+            "[TTS] Sending stream request to Doubao: format={}, resource_id={}, speaker={}, text_len={}",
+            format,
+            self.resource_id,
+            self.speaker,
+            text.chars().count()
+        );
+
         let client = Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()
@@ -181,6 +189,14 @@ impl DoubaoStreamClient {
         context_texts: Option<Vec<String>>,
         emotion: Option<String>,
     ) -> Result<Vec<u8>, String> {
+        crate::pylog!(
+            "[TTS] Sending non-stream request to Doubao: format={}, resource_id={}, speaker={}, text_len={}",
+            format,
+            self.resource_id,
+            self.speaker,
+            text.chars().count()
+        );
+
         let client = Client::builder()
             .timeout(REQUEST_TIMEOUT)
             .build()

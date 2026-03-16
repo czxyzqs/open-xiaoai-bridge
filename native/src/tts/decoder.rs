@@ -153,6 +153,7 @@ pub struct StreamingDecoder {
     buffer: Vec<u8>,
     format: String,
     target_sample_rate: u32,
+    emitted_pcm_bytes: usize,
 }
 
 impl StreamingDecoder {
@@ -161,6 +162,7 @@ impl StreamingDecoder {
             buffer: Vec::new(),
             format: format.to_string(),
             target_sample_rate,
+            emitted_pcm_bytes: 0,
         }
     }
 
@@ -169,12 +171,19 @@ impl StreamingDecoder {
         self.buffer.extend_from_slice(chunk);
     }
 
-    /// Decode all accumulated audio data and return PCM.
+    /// Decode all accumulated audio data and return only the newly available PCM.
     pub fn decode_all(&mut self) -> Result<Vec<u8>, String> {
         if self.buffer.is_empty() {
             return Ok(Vec::new());
         }
-        let data = std::mem::take(&mut self.buffer);
-        decode_audio_to_pcm(&data, &self.format, self.target_sample_rate)
+
+        let pcm = decode_audio_to_pcm(&self.buffer, &self.format, self.target_sample_rate)?;
+        if pcm.len() <= self.emitted_pcm_bytes {
+            return Ok(Vec::new());
+        }
+
+        let new_pcm = pcm[self.emitted_pcm_bytes..].to_vec();
+        self.emitted_pcm_bytes = pcm.len();
+        Ok(new_pcm)
     }
 }

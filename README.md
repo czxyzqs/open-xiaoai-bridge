@@ -625,12 +625,17 @@ APP_CONFIG = {
     "doubao": {
         "stream": False,  # 默认：等待整段音频合成完毕后再播放，兼容性更好
         # "stream": True,  # 流式：边合成边播放，首音延迟更低，稳定后可切换
+        # "audio_format": "auto",  # 可选：短文本用 pcm，长文本用 mp3
+        # "auto_pcm_max_chars": 120,  # audio_format=auto 时，短文本阈值
     }
 }
 ```
 
 - `stream: False`（默认）：等所有音频合成完成后一次性播放，行为更可预期
 - `stream: True`：流式模式，由 Rust 原生实现（HTTP 流式请求 → symphonia MP3 帧对齐解码 → PCM → WebSocket 推送），首音延迟明显更低；如遇问题切回 `False` 即可
+- `audio_format: "pcm"`：首音更快、流式通常更稳，但长文本总耗时更高
+- `audio_format: "mp3"`：整体传输效率更高，长文本通常更早结束
+- `audio_format: "auto"`：推荐折中方案。短文本自动选 `pcm`，长文本自动选 `mp3`
 
 如果只是想验证“豆包流式拉流 + Rust 流式解码”是否跑通，而不依赖小爱音箱，可以直接运行：
 
@@ -643,6 +648,18 @@ python3 tests/test_tts_stream.py
 ```bash
 python3 tests/test_tts_stream.py --resource-id seed-icl-2.0 --speaker-id S_xxx
 ```
+
+如果想比较长文本在 `mp3` / `pcm` 两种格式下的流式处理时延，可以运行：
+
+```bash
+python3 tests/test_tts_latency.py --formats mp3,pcm --rounds 3 --repeat 8
+```
+
+输出会对比：
+- 首个编码块到达时间 `first_encoded_ms`
+- 首个可播放 PCM 时间 `first_pcm_ms`
+- 整段处理总耗时 `total_ms`
+- 编码后音频体积与 PCM 体积
 
 
 

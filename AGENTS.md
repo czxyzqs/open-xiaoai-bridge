@@ -14,7 +14,7 @@ open-xiaoai-bridge/
 │   │   ├── lib.rs        # Rust Python 扩展入口
 │   │   ├── server.rs     # 音频服务实现
 │   │   ├── python.rs     # PyO3 Python 绑定
-│   │   └── tts/          # TTS 流式合成（MP3 解码 + 播放）
+│   │   └── tts/          # TTS 音频处理（流式/非流式、PCM 直通、延迟测试接口）
 │   └── Cargo.toml
 ├── core/                 # Python 核心源码
 │   ├── app.py            # MainApp: 应用主控制器
@@ -93,7 +93,7 @@ OpenClaw 网关客户端：
 - `lib.rs`: 扩展入口，使用 PyO3 绑定
 - `server.rs`: WebSocket 音频服务器（端口 4399）
 - `python.rs`: Python API 暴露（`open_xiaoai_server` 模块）
-- `tts/`: TTS 流式合成模块（HTTP 流式请求 → symphonia MP3 解码 → PCM 播放）
+- `tts/`: TTS 音频处理模块（HTTP 流式请求、MP3 解码、PCM 直通、流式缓冲、延迟测试接口）
 
 **编译产物**: `open_xiaoai_server` Python 模块，供 `main.py` 调用
 
@@ -129,6 +129,8 @@ APP_CONFIG = {
         "doubao": {
             "app_id": "...",
             "access_key": "...",
+            "audio_format": "auto",        # 可选：mp3 / pcm / auto
+            "auto_pcm_max_chars": 120,     # 可选：audio_format=auto 时的 PCM 阈值
         }
     }
 }
@@ -220,6 +222,12 @@ API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 uv run main.py
 
 # 启用 OpenClaw
 OPENCLAW_ENABLED=1 uv run main.py
+
+# 无音箱流式冒烟测试
+python3 tests/test_tts_stream.py
+
+# 比较长文本 mp3 / pcm 流式时延
+python3 tests/test_tts_latency.py --formats mp3,pcm --rounds 3 --repeat 8
 ```
 
 ## 参考资源

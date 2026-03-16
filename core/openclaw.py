@@ -877,6 +877,7 @@ class OpenClawManager:
                 access_key=access_key,
                 speaker=speaker_id,
             )
+            resolved_format = tts.resolve_audio_format(text)
 
             # Stream synthesis and play chunks as they arrive (or fallback to non-stream)
             use_stream = tts_config.get("stream", False)
@@ -895,7 +896,7 @@ class OpenClawManager:
                         resource_id=tts.resource_id,
                         speaker=speaker_id,
                         speed=cls._tts_speed,
-                        format=tts.audio_format,
+                        format=resolved_format,
                         sample_rate=24000,
                     )
                     logger.debug("[OpenClaw] TTS stream playback completed")
@@ -911,7 +912,7 @@ class OpenClawManager:
                     resource_id=tts.resource_id,
                     speaker=speaker_id,
                     speed=cls._tts_speed,
-                    format=tts.audio_format,
+                    format=resolved_format,
                     sample_rate=24000,
                 )
                 logger.debug("[OpenClaw] Response playback completed")

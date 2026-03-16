@@ -7,11 +7,14 @@ use open_xiaoai::services::connect::message::MessageManager;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use serde_json::json;
+use std::collections::VecDeque;
 use std::time::Instant;
 use tokio::sync::mpsc;
 
 const STREAM_BUFFER_THRESHOLD: usize = 8192;
 const PLAY_CHUNK_SIZE: usize = 1024 * 1024; // 1MB chunks for WebSocket
+const PCM_START_BUFFER_MS: u32 = 240;
+const PCM_STREAM_CHUNK_MS: u32 = 60;
 
 /// Send PCM data to device, auto-chunking if larger than PLAY_CHUNK_SIZE.
 async fn send_pcm(pcm: Vec<u8>) {
@@ -28,6 +31,60 @@ async fn send_pcm(pcm: Vec<u8>) {
                 .await;
             offset = end;
         }
+    }
+}
+
+struct PcmPlaybackBuffer {
+    queue: VecDeque<u8>,
+    started: bool,
+    startup_bytes: usize,
+    chunk_bytes: usize,
+}
+
+impl PcmPlaybackBuffer {
+    fn new(sample_rate: u32) -> Self {
+        let bytes_per_second = sample_rate as usize * 2;
+        let startup_bytes = bytes_per_second * PCM_START_BUFFER_MS as usize / 1000;
+        let chunk_bytes = bytes_per_second * PCM_STREAM_CHUNK_MS as usize / 1000;
+
+        Self {
+            queue: VecDeque::new(),
+            started: false,
+            startup_bytes: startup_bytes.max(chunk_bytes.max(1)),
+            chunk_bytes: chunk_bytes.max(1),
+        }
+    }
+
+    fn push(&mut self, pcm: &[u8]) {
+        self.queue.extend(pcm.iter().copied());
+    }
+
+    fn drain_ready_chunks(&mut self) -> Vec<Vec<u8>> {
+        if !self.started {
+            if self.queue.len() < self.startup_bytes {
+                return Vec::new();
+            }
+            self.started = true;
+        }
+
+        let mut chunks = Vec::new();
+        while self.queue.len() >= self.chunk_bytes {
+            let chunk: Vec<u8> = self.queue.drain(..self.chunk_bytes).collect();
+            chunks.push(chunk);
+        }
+        chunks
+    }
+
+    fn drain_remaining(&mut self) -> Vec<Vec<u8>> {
+        if !self.started && !self.queue.is_empty() {
+            self.started = true;
+        }
+
+        let mut chunks = self.drain_ready_chunks();
+        if !self.queue.is_empty() {
+            chunks.push(self.queue.drain(..).collect());
+        }
+        chunks
     }
 }
 
@@ -50,6 +107,7 @@ pub fn tts_stream_play(
 ) -> PyResult<Bound<'_, PyAny>> {
     pyo3_async_runtimes::tokio::future_into_py(py, async move {
         let started_at = Instant::now();
+        let is_pcm_passthrough = format == "pcm";
         let client = DoubaoStreamClient::new(app_id, access_key, resource_id, speaker);
 
         let (tx, mut rx) = mpsc::channel::<Vec<u8>>(16);
@@ -65,9 +123,10 @@ pub fn tts_stream_play(
         });
 
         let mut decoder = StreamingDecoder::new(&format, sample_rate);
+        let mut playback_buffer = PcmPlaybackBuffer::new(sample_rate);
         let mut accumulated_size: usize = 0;
         let mut first_audio_chunk_logged = false;
-        let mut first_playable_pcm_logged = false;
+        let mut first_buffered_chunk_logged = false;
 
         while let Some(chunk) = rx.recv().await {
             if !first_audio_chunk_logged {
@@ -79,21 +138,40 @@ pub fn tts_stream_play(
                 first_audio_chunk_logged = true;
             }
 
+            if is_pcm_passthrough {
+                playback_buffer.push(&chunk);
+                for pcm_chunk in playback_buffer.drain_ready_chunks() {
+                    if !first_buffered_chunk_logged {
+                        crate::pylog!(
+                            "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
+                            started_at.elapsed().as_millis(),
+                            playback_buffer.startup_bytes
+                        );
+                        first_buffered_chunk_logged = true;
+                    }
+                    send_pcm(pcm_chunk).await;
+                }
+                continue;
+            }
+
             accumulated_size += chunk.len();
             decoder.feed(&chunk);
 
             if accumulated_size >= STREAM_BUFFER_THRESHOLD {
                 match decoder.decode_all() {
                     Ok(pcm) if !pcm.is_empty() => {
-                        if !first_playable_pcm_logged {
-                            crate::pylog!(
-                                "[TTS] Stream first playable PCM ready after {} ms ({} bytes)",
-                                started_at.elapsed().as_millis(),
-                                pcm.len()
-                            );
-                            first_playable_pcm_logged = true;
+                        playback_buffer.push(&pcm);
+                        for pcm_chunk in playback_buffer.drain_ready_chunks() {
+                            if !first_buffered_chunk_logged {
+                                crate::pylog!(
+                                    "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
+                                    started_at.elapsed().as_millis(),
+                                    playback_buffer.startup_bytes
+                                );
+                                first_buffered_chunk_logged = true;
+                            }
+                            send_pcm(pcm_chunk).await;
                         }
-                        send_pcm(pcm).await;
                     }
                     Ok(_) => {}
                     Err(e) => {
@@ -106,19 +184,26 @@ pub fn tts_stream_play(
 
         match decoder.decode_all() {
             Ok(pcm) if !pcm.is_empty() => {
-                if !first_playable_pcm_logged {
-                    crate::pylog!(
-                        "[TTS] Stream single playable PCM ready after {} ms ({} bytes)",
-                        started_at.elapsed().as_millis(),
-                        pcm.len()
-                    );
+                if !is_pcm_passthrough {
+                    playback_buffer.push(&pcm);
                 }
-                send_pcm(pcm).await;
             }
             Ok(_) => {}
             Err(e) => {
                 crate::pylog!("[TTS] Final decode error: {}", e);
             }
+        }
+
+        for pcm_chunk in playback_buffer.drain_remaining() {
+            if !first_buffered_chunk_logged {
+                crate::pylog!(
+                    "[TTS] Stream first buffered PCM dispatched after {} ms ({} bytes buffered)",
+                    started_at.elapsed().as_millis(),
+                    playback_buffer.queue.len()
+                );
+                first_buffered_chunk_logged = true;
+            }
+            send_pcm(pcm_chunk).await;
         }
 
         if let Ok(Err(e)) = fetch_handle.await {
@@ -204,6 +289,7 @@ pub fn tts_stream_collect(
         let started_at = Instant::now();
         let client = DoubaoStreamClient::new(app_id, access_key, resource_id, speaker);
         let (tx, mut rx) = mpsc::channel::<Vec<u8>>(16);
+        let is_pcm_passthrough = format == "pcm";
 
         let fetch_handle = tokio::spawn({
             let text = text.clone();
@@ -231,6 +317,16 @@ pub fn tts_stream_collect(
 
             encoded_chunks += 1;
             encoded_bytes += chunk.len();
+
+            if is_pcm_passthrough {
+                if first_pcm_ms.is_none() {
+                    first_pcm_ms = Some(started_at.elapsed().as_millis());
+                }
+                pcm_chunks += 1;
+                pcm_bytes += chunk.len();
+                continue;
+            }
+
             accumulated_size += chunk.len();
             decoder.feed(&chunk);
 
@@ -257,6 +353,21 @@ pub fn tts_stream_collect(
 
         match decoder.decode_all() {
             Ok(pcm) if !pcm.is_empty() => {
+                if is_pcm_passthrough {
+                    return Ok(json!({
+                        "ok": true,
+                        "format": format,
+                        "sample_rate": sample_rate,
+                        "encoded_chunks": encoded_chunks,
+                        "encoded_bytes": encoded_bytes,
+                        "pcm_chunks": pcm_chunks,
+                        "pcm_bytes": pcm_bytes,
+                        "first_encoded_ms": first_encoded_ms,
+                        "first_pcm_ms": first_pcm_ms,
+                        "total_ms": started_at.elapsed().as_millis(),
+                    })
+                    .to_string());
+                }
                 if first_pcm_ms.is_none() {
                     first_pcm_ms = Some(started_at.elapsed().as_millis());
                 }

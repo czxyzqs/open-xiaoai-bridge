@@ -95,6 +95,8 @@ APP_CONFIG = {
             "app_id": "xxxx",         # 你的 App ID
             "access_key": "xxxxxx",       # 你的 Access Key
             "default_speaker": "zh_female_vv_uranus_bigtts",  # 音色 https://www.volcengine.com/docs/6561/1257544?lang=zh
+            "audio_format": "auto",  # 可选：短文本用 pcm，长文本用 mp3
+            "auto_pcm_max_chars": 120,  # audio_format=auto 时，短文本阈值
             "stream": False,  # 流式合成（边合成边播放，首音延迟更低），跑稳定后可设为 True
         }
     },

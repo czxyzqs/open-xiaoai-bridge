@@ -9,6 +9,7 @@ class DoubaoTTS:
     """豆包语音合成服务 (字节跳动火山引擎)"""
 
     DEFAULT_URL = "https://openspeech.bytedance.com/api/v3/tts/unidirectional"
+    DEFAULT_AUTO_PCM_MAX_CHARS = 120
 
     # 官方音色列表 - 来自 https://www.volcengine.com/docs/6561/1257544
 
@@ -459,6 +460,15 @@ class DoubaoTTS:
             except Exception:
                 audio_format = "mp3"
         self.audio_format = audio_format
+        try:
+            from config import APP_CONFIG
+            self.auto_pcm_max_chars = (
+                APP_CONFIG.get("tts", {})
+                .get("doubao", {})
+                .get("auto_pcm_max_chars", self.DEFAULT_AUTO_PCM_MAX_CHARS)
+            )
+        except Exception:
+            self.auto_pcm_max_chars = self.DEFAULT_AUTO_PCM_MAX_CHARS
 
     @classmethod
     def _detect_resource_id(cls, speaker: str) -> str:
@@ -524,6 +534,15 @@ class DoubaoTTS:
             "user": {"uid": "xiaozhi_user"},
             "req_params": req_params,
         }
+
+    def resolve_audio_format(self, text: str = "") -> str:
+        """Resolve the final audio format from config or auto strategy."""
+        if self.audio_format != "auto":
+            return self.audio_format
+
+        if len(text or "") <= int(self.auto_pcm_max_chars):
+            return "pcm"
+        return "mp3"
 
     @classmethod
     def list_voices(cls) -> dict:

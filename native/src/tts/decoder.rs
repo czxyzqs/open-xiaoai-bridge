@@ -26,6 +26,10 @@ pub fn decode_audio_to_pcm(
     format: &str,
     target_sample_rate: u32,
 ) -> Result<Vec<u8>, String> {
+    if format == "pcm" {
+        return Ok(audio_data.to_vec());
+    }
+
     let cursor = io::Cursor::new(audio_data.to_vec());
     let source: Box<dyn MediaSource> = Box::new(ReadOnlySource::new(cursor));
     let mss = MediaSourceStream::new(source, Default::default());

@@ -449,7 +449,10 @@ class APIServer:
                 resource_id=resource_id,
                 speaker=speaker_id,
             )
-            logger.info(f"[APIServer] Doubao TTS: speaker={speaker_id}, resource_id={tts.resource_id}")
+            resolved_format = tts.resolve_audio_format(text)
+            logger.info(
+                f"[APIServer] Doubao TTS: speaker={speaker_id}, resource_id={tts.resource_id}, format={resolved_format}"
+            )
 
             use_stream = tts_config.get("stream", False)
             if use_stream:
@@ -462,7 +465,7 @@ class APIServer:
                             resource_id=tts.resource_id,
                             speaker=speaker_id,
                             speed=speed,
-                            format=tts.audio_format,
+                            format=resolved_format,
                             sample_rate=24000,
                             emotion=emotion,
                             context_texts=context_texts,
@@ -485,7 +488,7 @@ class APIServer:
                             resource_id=tts.resource_id,
                             speaker=speaker_id,
                             speed=speed,
-                            format=tts.audio_format,
+                            format=resolved_format,
                             sample_rate=24000,
                             emotion=emotion,
                             context_texts=context_texts,

@@ -6,7 +6,6 @@ from core.ref import (
     get_kws,
     get_speaker,
     get_vad,
-    get_xiaoai,
     get_xiaozhi,
     set_speech_frames,
 )
@@ -34,12 +33,15 @@ class WakeupSessionManager:
         self.pending_step_data = None
         self.pending_step_session_id = None
         self.config = ConfigManager.instance()
+        self._openclaw_controller = None  # current OpenClaw conversation controller
+        self._openclaw_task: asyncio.Task | None = None  # asyncio task wrapping the conversation
 
     def _get_loop(self):
         app = get_app()
         if app:
             return app.loop
-        return get_xiaoai().async_loop
+        from core.xiaoai import XiaoAI
+        return XiaoAI.async_loop
 
     def update_step(self, step: WakeupStep, step_data=None):
         self.current_step = step
@@ -100,7 +102,26 @@ class WakeupSessionManager:
     def on_interrupt(self):
         self.session_id += 1
         self._clear_pending_step()
-        logger.info("[Wakeup] Interrupt received from XiaoAI")
+        logger.info("[Wakeup] XiaoAI wakeup — interrupting active sessions")
+
+        loop = self._get_loop()
+
+        # Cancel the OpenClaw asyncio task (interrupts any blocking TTS await)
+        if self._openclaw_task and not self._openclaw_task.done():
+            loop.call_soon_threadsafe(self._openclaw_task.cancel)
+        elif self._openclaw_controller and self._openclaw_controller.is_active():
+            self._openclaw_controller.stop()
+
+        # Kill aplay on the device to stop PCM playback immediately
+        async def _stop_and_restart_playing():
+            import open_xiaoai_server
+            await open_xiaoai_server.stop_playing()
+            await open_xiaoai_server.start_playing()
+
+        asyncio.run_coroutine_threadsafe(_stop_and_restart_playing(), loop)
+
+        from core.xiaoai import XiaoAI
+        XiaoAI.stop_conversation()
         self.update_step(WakeupStep.on_interrupt)
         self.start_session()
 
@@ -150,7 +171,10 @@ class WakeupSessionManager:
         speaker = get_speaker()
         xiaozhi = get_xiaozhi()
 
-        if not xiaozhi or not xiaozhi.protocol:
+        if not xiaozhi:
+            return
+
+        if not xiaozhi.protocol:
             logger.warning("[Wakeup] XiaoZhi is not ready, skip wakeup session")
             return
 
@@ -220,16 +244,17 @@ class WakeupSessionManager:
             get_speaker(),
             text,
             source,
-            get_xiaozhi(),
-            get_xiaoai(),
             get_app(),
         )
         if kws:
             kws.resume()
         logger.info(f"[Wakeup] before_wakeup returned: {should_wakeup}")
+        if should_wakeup is not None:
+            await self.reset_all_sessions()
+
         if should_wakeup == "openclaw":
             await self._start_openclaw_conversation()
-        elif should_wakeup:
+        elif should_wakeup == "xiaozhi":
             self.on_wakeup()
 
     async def _start_openclaw_conversation(self):
@@ -244,16 +269,52 @@ class WakeupSessionManager:
         if kws:
             kws.pause()
         try:
-            controller = OpenClawConversationController()
-            await controller.start()
+            self._openclaw_controller = OpenClawConversationController()
+            self._openclaw_task = asyncio.create_task(self._openclaw_controller.start())
+            await self._openclaw_task
+        except asyncio.CancelledError:
+            pass  # interrupted cleanly by on_interrupt
         except Exception as exc:
             logger.error(
                 f"[Wakeup] OpenClaw conversation failed: {type(exc).__name__}: {exc}",
                 module="Wakeup",
             )
         finally:
+            self._openclaw_controller = None
+            self._openclaw_task = None
             if kws:
                 kws.resume()
+
+    async def reset_all_sessions(self):
+        """Reset all active sessions before starting a new one.
+
+        Stops XiaoAI continuous conversation, interrupts any active XiaoZhi
+        session, and stops any OpenClaw continuous conversation.
+        """
+        from core.xiaoai import XiaoAI
+        from core.ref import get_xiaozhi
+
+        # Stop XiaoAI continuous conversation
+        XiaoAI.stop_conversation()
+
+        # Interrupt active XiaoZhi session
+        xiaozhi = get_xiaozhi()
+        if xiaozhi and xiaozhi.is_connected():
+            try:
+                await xiaozhi.send_abort_speaking(AbortReason.ABORT)
+            except Exception:
+                pass
+
+        # Stop OpenClaw continuous conversation
+        if self._openclaw_controller and self._openclaw_controller.is_active():
+            self._openclaw_controller.stop()
+
+        # Reset wakeup state machine
+        self.session_id += 1
+        self._clear_pending_step()
+        self.update_step(WakeupStep.on_interrupt)
+
+        logger.info("[Wakeup] All sessions reset")
 
 
 EventManager = WakeupSessionManager()

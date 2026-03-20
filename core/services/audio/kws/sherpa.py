@@ -1,17 +1,22 @@
 import numpy as np
 import sherpa_onnx
 
+from core.utils.config import ConfigManager
 from core.utils.file import get_model_file_path
 
 
 class _SherpaOnnx:
     def start(self):
+        config = ConfigManager.instance()
+        keywords_score = config.get_app_config("kws.keywords_score", 2.0)
+        keywords_threshold = config.get_app_config("kws.keywords_threshold", 0.2)
+
         self.keyword_spotter = sherpa_onnx.KeywordSpotter(
             provider="cpu",
             num_threads=1,
             max_active_paths=8,
-            keywords_score=2.0,
-            keywords_threshold=0.2,
+            keywords_score=keywords_score,
+            keywords_threshold=keywords_threshold,
             num_trailing_blanks=0,
             keywords_file=get_model_file_path("keywords.txt"),
             tokens=get_model_file_path("tokens.txt"),

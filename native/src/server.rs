@@ -62,8 +62,8 @@ impl AppServer {
         let addr = "0.0.0.0:4399";
         let listener = TcpListener::bind(&addr)
             .await
-            .expect(format!("❌ 绑定地址失败: {}", &addr).as_str());
-        crate::pylog!("✅ 已启动: {:?}", addr);
+            .expect(format!("[AppServer] ❌ 绑定地址失败: {}", &addr).as_str());
+        crate::pylog!("[AppServer] ✅ 已启动: {:?}", addr);
         while let Ok((stream, addr)) = listener.accept().await {
             // 同一时刻只处理一个连接
             AppServer::handle_connection(stream, addr).await;
@@ -72,16 +72,16 @@ impl AppServer {
 
     async fn handle_connection(stream: TcpStream, addr: std::net::SocketAddr) {
         let Ok(ws_stream) = AppServer::connect(stream).await else {
-            crate::pylog!("❌ 连接异常: {}", addr);
+            crate::pylog!("[AppServer] ❌ 连接异常: {}", addr);
             return;
         };
-        crate::pylog!("✅ 已连接: {:?}", addr);
+        crate::pylog!("[AppServer] ✅ 已连接: {:?}", addr);
         AppServer::init(ws_stream).await;
         if let Err(e) = MessageManager::instance().process_messages().await {
-            crate::pylog!("❌ 消息处理异常: {}", e);
+            crate::pylog!("[AppServer] ❌ 消息处理异常: {}", e);
         }
         AppServer::dispose().await;
-        crate::pylog!("❌ 已断开连接");
+        crate::pylog!("[AppServer] ❌ 已断开连接");
     }
 
     async fn init(ws_stream: WsStream) {

@@ -25,8 +25,11 @@ def should_generate_keywords():
     """Return whether keyword generation should run."""
     import os
 
-    if os.environ.get("XIAOZHI_ENABLE", "").lower() not in ("1", "true", "yes"):
-        return False, "XIAOZHI_ENABLE is disabled"
+    xiaozhi_enabled = os.environ.get("XIAOZHI_ENABLE", "").lower() in ("1", "true", "yes")
+    openclaw_enabled = os.environ.get("OPENCLAW_ENABLED", "").lower() in ("1", "true", "yes")
+
+    if not xiaozhi_enabled and not openclaw_enabled:
+        return False, "XIAOZHI_ENABLE and OPENCLAW_ENABLED are both disabled"
 
     return True, ""
 

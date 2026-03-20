@@ -64,7 +64,7 @@ class OpenClawConversationController:
 
     @property
     def timeout(self) -> int:
-        return int(self._cfg("timeout", 20))
+        return int(self.config.get_app_config("wakeup.timeout", 20))
 
     # ---- public API ----
 
@@ -85,7 +85,7 @@ class OpenClawConversationController:
             await self._conversation_loop()
         except Exception as exc:
             logger.error(
-                f"[OpenClaw Conv] Conversation loop error: {type(exc).__name__}: {exc}",
+                f"Conversation loop error: {type(exc).__name__}: {exc}",
                 module="OpenClaw Conv",
             )
         finally:
@@ -110,6 +110,9 @@ class OpenClawConversationController:
         if vad:
             await self._wait_for_silence(vad)
 
+        # Play notify sound once to signal the first listening round is ready.
+        await self._play_notify()
+
         while self.active:
             result = await self._run_one_turn()
             if result in ("exit", "timeout"):
@@ -129,7 +132,7 @@ class OpenClawConversationController:
         """
         vad = get_vad()
         if not vad:
-            logger.error("[OpenClaw Conv] VAD not available", module="OpenClaw Conv")
+            logger.error("VAD not available", module="OpenClaw Conv")
             return "error"
 
         # 1. Start listening for speech (recording is already active)
@@ -138,34 +141,30 @@ class OpenClawConversationController:
             return "timeout"
 
         logger.debug(
-            f"[OpenClaw Conv] Got speech buffer: {len(speech_bytes)} bytes",
+            f"Got speech buffer: {len(speech_bytes)} bytes",
             module="OpenClaw Conv",
         )
 
         # 2. ASR: convert speech to text
         text = SherpaASR.asr(speech_bytes, sample_rate=16000)
         if not text:
-            logger.info("[OpenClaw Conv] ASR returned empty, continue listening", module="OpenClaw Conv")
+            logger.debug("ASR empty, retrying", module="OpenClaw Conv")
             return "continue"
-
-        logger.info(f"💬 [OpenClaw Conv] User: {text}", module="OpenClaw Conv")
 
         # 3. Check exit keywords
         for kw in self.exit_keywords:
             if kw in text:
-                logger.info(f"[OpenClaw Conv] Exit keyword detected: {kw}", module="OpenClaw Conv")
+                logger.info(f"Exit keyword: {kw}", module="OpenClaw Conv")
                 return "exit"
 
         # 4. Send to OpenClaw and wait for response
-        response = await OpenClawManager.send_message(text, wait_response=True)
-        if response is None or response is False:
-            logger.warning("[OpenClaw Conv] OpenClaw returned no response", module="OpenClaw Conv")
+        response = await OpenClawManager.send(text, wait_response=True)
+        if response is None:
+            logger.warning("No response from OpenClaw", module="OpenClaw Conv")
             speaker = get_speaker()
             if speaker:
                 await speaker.play(text="抱歉，我没有收到回复")
             return "continue"
-
-        logger.info(f"🤖 [OpenClaw Conv] OpenClaw: {response}", module="OpenClaw Conv")
 
         # 5. Stop recording → TTS → Notify → Wait for silence → Start recording
         #    Physical mute/unmute prevents echo; VAD silence check ensures
@@ -244,7 +243,7 @@ class OpenClawConversationController:
             return result
 
         except asyncio.TimeoutError:
-            logger.debug("[OpenClaw Conv] VAD timeout, no speech detected", module="OpenClaw Conv")
+            logger.debug("VAD timeout, no speech detected", module="OpenClaw Conv")
             vad.pause()
             return None
 
@@ -298,17 +297,17 @@ class OpenClawConversationController:
         """Kill the remote arecord process so the mic doesn't pick up TTS."""
         try:
             await open_xiaoai_server.stop_recording()
-            logger.debug("[OpenClaw Conv] Recording stopped", module="OpenClaw Conv")
+            logger.debug("Recording stopped", module="OpenClaw Conv")
         except Exception as exc:
-            logger.debug(f"[OpenClaw Conv] stop_recording error: {exc}", module="OpenClaw Conv")
+            logger.debug(f"stop_recording error: {exc}", module="OpenClaw Conv")
 
     async def _start_recording(self):
         """Restart the remote arecord process to resume mic input."""
         try:
             await open_xiaoai_server.start_recording()
-            logger.debug("[OpenClaw Conv] Recording started", module="OpenClaw Conv")
+            logger.debug("Recording started", module="OpenClaw Conv")
         except Exception as exc:
-            logger.debug(f"[OpenClaw Conv] start_recording error: {exc}", module="OpenClaw Conv")
+            logger.debug(f"start_recording error: {exc}", module="OpenClaw Conv")
 
     # ---- TTS ----
 
@@ -318,7 +317,7 @@ class OpenClawConversationController:
             await OpenClawManager._play_response_with_tts(text)
         except Exception as exc:
             logger.error(
-                f"[OpenClaw Conv] TTS playback error: {exc}",
+                f"TTS playback error: {exc}",
                 module="OpenClaw Conv",
             )
             speaker = get_speaker()
@@ -337,7 +336,7 @@ class OpenClawConversationController:
                 duration = len(_NOTIFY_PCM) / (24000 * 2)
                 await asyncio.sleep(duration)
             except Exception as exc:
-                logger.debug(f"[OpenClaw Conv] Notify sound error: {exc}", module="OpenClaw Conv")
+                logger.debug(f"Notify sound error: {exc}", module="OpenClaw Conv")
 
     async def _call_after_wakeup(self):
         """Call the user-defined after_wakeup hook with source='openclaw'."""

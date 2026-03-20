@@ -58,7 +58,10 @@ class _KWS:
         self.paused = False
         self.thread = threading.Thread(target=self._detection_loop, daemon=True)
         self.thread.start()
-        logger.kws_event(f"服务启动 (开始 KWS 检测), 配置：最短静音帧数 {self.vad_max_silence_frames} 帧")
+        config = ConfigManager.instance()
+        keywords_score = config.get_app_config("kws.keywords_score", 2.0)
+        keywords_threshold = config.get_app_config("kws.keywords_threshold", 0.2)
+        logger.kws_event("关键词唤醒服务启动", f"关键词得分≥{keywords_score}, 阈值={keywords_threshold}, VAD门限={self.vad_max_silence_frames}帧")
 
     def get_file_path(self, file_name: str):
         current_dir = os.path.dirname(os.path.abspath(__file__))

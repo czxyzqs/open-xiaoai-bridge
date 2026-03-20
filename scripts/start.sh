@@ -49,7 +49,7 @@ ONNX_LIB_DIR="$(uv run python -c "from pathlib import Path; import onnxruntime; 
 # 3. 检查 KWS 相关模型和关键词文件
 if [[ "$XIAOZHI_ENABLED" =~ ^(1|true|yes)$ ]] || [[ "$OPENCLAW_ENABLED" =~ ^(1|true|yes)$ ]]; then
     MODEL_DIR="core/models"
-    REQUIRED_MODELS=("silero_vad.onnx" "tokens.txt" "bpe.model")
+    REQUIRED_MODELS=("silero_vad.onnx" "encoder.onnx" "decoder.onnx" "joiner.onnx" "tokens.txt" "bpe.model")
     MISSING_MODELS=()
 
     for model in "${REQUIRED_MODELS[@]}"; do
@@ -57,6 +57,11 @@ if [[ "$XIAOZHI_ENABLED" =~ ^(1|true|yes)$ ]] || [[ "$OPENCLAW_ENABLED" =~ ^(1|t
             MISSING_MODELS+=("$model")
         fi
     done
+
+    # Check ASR model directory (sherpa-onnx-sense-voice-*)
+    if ! ls "$MODEL_DIR"/sherpa-onnx-sense-voice-*/model.int8.onnx &>/dev/null; then
+        MISSING_MODELS+=("sherpa-onnx-sense-voice-*/model.int8.onnx")
+    fi
 
     if [ ${#MISSING_MODELS[@]} -eq 0 ]; then
         echo -e "${GREEN}✓ 模型文件已存在${NC}"
@@ -71,7 +76,7 @@ if [[ "$XIAOZHI_ENABLED" =~ ^(1|true|yes)$ ]] || [[ "$OPENCLAW_ENABLED" =~ ^(1|t
         mkdir -p "$MODEL_DIR"
 
         # 下载模型文件
-        MODEL_URL="https://github.com/coderzc/open-xiaoai/releases/download/vad-kws-models/models.zip"
+        MODEL_URL="https://github.com/coderzc/open-xiaoai-bridge/releases/download/vad-kws-asr-models/models.zip"
         ZIP_FILE="$MODEL_DIR/models.zip"
 
         echo -e "${YELLOW}正在下载模型文件...${NC}"
@@ -139,14 +144,24 @@ fi
 echo ""
 echo "检查配置..."
 
-# 先检查 Python 是否能导入 config
-if ! uv run python -c "import sys; sys.path.insert(0, '.'); from config import APP_CONFIG" 2>/dev/null; then
-    echo -e "${YELLOW}⚠ 无法加载 config.py，跳过配置检查${NC}"
-else
-    uv run python -c "
+# 使用 config_loader 加载配置，支持 CONFIG_PATH 环境变量
+uv run python -c "
 import sys
+import os
 sys.path.insert(0, '.')
-from config import APP_CONFIG
+
+# 尝试使用 config_loader 加载配置
+try:
+    from core.utils.config_loader import load_config_module
+    config_module = load_config_module()
+    APP_CONFIG = getattr(config_module, 'APP_CONFIG', {})
+except Exception as e:
+    # 回退到直接导入
+    try:
+        from config import APP_CONFIG
+    except ImportError:
+        print('⚠ 无法加载配置，跳过配置检查')
+        sys.exit(0)
 
 doubao = APP_CONFIG.get('tts', {}).get('doubao', {})
 app_id = doubao.get('app_id', '')
@@ -166,7 +181,6 @@ if errors:
 else:
     print('✓ 豆包 TTS 已配置')
 " 2>/dev/null || echo -e "${YELLOW}⚠ 配置检查失败${NC}"
-fi
 
 echo ""
 echo -e "${GREEN}========================================${NC}"

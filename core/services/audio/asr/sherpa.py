@@ -40,8 +40,6 @@ class _SherpaASR:
         model_path = os.path.join(model_dir, "model.int8.onnx")
         tokens_path = os.path.join(model_dir, "tokens.txt")
 
-        logger.info(f"[ASR] Loading SenseVoice model from {model_dir}", module="ASR")
-
         self._recognizer = sherpa_onnx.OfflineRecognizer.from_sense_voice(
             model=model_path,
             tokens=tokens_path,
@@ -51,7 +49,7 @@ class _SherpaASR:
             provider="cpu",
             language="auto",
         )
-        logger.info("[ASR] SenseVoice model loaded", module="ASR")
+        logger.asr_event("语音识别服务启动", f"模型=SenseVoice")
 
     def asr(self, pcm_bytes: bytes, sample_rate: int = 16000) -> str:
         """Recognize speech from raw PCM int16 audio bytes.
@@ -74,7 +72,7 @@ class _SherpaASR:
 
         text = stream.result.text.strip()
         if text:
-            logger.info(f"[ASR] Recognized: {text}", module="ASR")
+            logger.debug(f"[ASR] Recognized: {text}", module="ASR")
         else:
             logger.debug("[ASR] No speech recognized", module="ASR")
         return text

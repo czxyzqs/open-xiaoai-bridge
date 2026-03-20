@@ -48,6 +48,39 @@ fn run_shell(py: Python, script: String, timeout_millis: f64) -> PyResult<Bound<
     })
 }
 
+/// Stop the remote aplay process (interrupts PCM audio playback immediately).
+#[pyfunction]
+fn stop_playing(py: Python) -> PyResult<Bound<PyAny>> {
+    pyo3_async_runtimes::tokio::future_into_py(py, async {
+        let _ = RPC::instance()
+            .call_remote("stop_play", None, None)
+            .await;
+        Ok(())
+    })
+}
+
+/// Restart the remote aplay process for audio playback.
+#[pyfunction]
+fn start_playing(py: Python) -> PyResult<Bound<PyAny>> {
+    pyo3_async_runtimes::tokio::future_into_py(py, async {
+        let _ = RPC::instance()
+            .call_remote(
+                "start_play",
+                Some(json!(AudioConfig {
+                    pcm: "noop".into(),
+                    channels: 1,
+                    bits_per_sample: 16,
+                    sample_rate: 24000,
+                    period_size: 1440 / 4,
+                    buffer_size: 1440,
+                })),
+                None,
+            )
+            .await;
+        Ok(())
+    })
+}
+
 /// Stop the remote arecord process (mutes the microphone).
 #[pyfunction]
 fn stop_recording(py: Python) -> PyResult<Bound<PyAny>> {
@@ -86,6 +119,8 @@ fn open_xiaoai_server(_py: Python, m: Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(start_server, &m)?)?;
     m.add_function(wrap_pyfunction!(on_output_data, &m)?)?;
     m.add_function(wrap_pyfunction!(run_shell, &m)?)?;
+    m.add_function(wrap_pyfunction!(stop_playing, &m)?)?;
+    m.add_function(wrap_pyfunction!(start_playing, &m)?)?;
     m.add_function(wrap_pyfunction!(stop_recording, &m)?)?;
     m.add_function(wrap_pyfunction!(start_recording, &m)?)?;
     crate::python::init_module(&m)?;

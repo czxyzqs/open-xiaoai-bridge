@@ -59,8 +59,7 @@ class _VAD:
 
     def start(self):
         """启动VAD检测器"""
-        logger.vad_event("启动", "开始VAD语音检测服务")
-        logger.vad_event("配置", f"阈值={self.threshold}, 最小语音时长={self.min_speech_duration}ms")
+        logger.vad_event("语音活动检测服务启动", f"最小语音时长={self.min_speech_duration}ms, 最小静音时长={self.min_silence_duration}ms, 阈值={self.threshold}")
         
         self._initialize_audio_stream()
 

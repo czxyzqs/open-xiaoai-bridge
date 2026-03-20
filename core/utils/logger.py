@@ -115,7 +115,10 @@ class XiaozhiLogger:
     
     def ai_response(self, text: str, module: str = "XiaoZhi"):
         """AI回复日志"""
-        self.info(f"🤖 小智：{text}", module=module)
+        if module == "XiaoZhi":
+          self.info(f"🤖 小智: {text}", module=module)
+        if module == "OpenClaw":
+          self.info(f"🦞 OpenClaw: {text}", module=module)  
     
     def vad_event(self, event: str, details: str = "", module: str = "VAD"):
         """VAD事件日志"""
@@ -130,7 +133,14 @@ class XiaozhiLogger:
         if details:
             message += f" ({details})"
         self.info(message, module=module)
-    
+
+    def asr_event(self, event: str, details: str = "", module: str = "ASR"):
+        """ASR事件日志"""
+        message = f"📝 ASR: {event}"
+        if details:
+            message += f" ({details})"
+        self.info(message, module=module)
+
     def device_state(self, state: str, module: str = "Device"):
         """设备状态日志"""
         self.info(f"📱 状态: {state}", module=module)

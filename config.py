@@ -7,7 +7,7 @@ import time
 import requests
 
 
-async def before_wakeup(speaker, text, source, xiaozhi, xiaoai, app):
+async def before_wakeup(speaker, text, source, app):
     """
     处理收到的用户消息，并决定是否唤醒小智 AI
 
@@ -16,42 +16,41 @@ async def before_wakeup(speaker, text, source, xiaozhi, xiaoai, app):
         - 'xiaoai': 小爱同学收到用户指令
 
     返回值:
-        - True / "xiaozhi": 走小智流程
+        - "xiaozhi": 走小智流程
         - "openclaw": 走 OpenClaw 连续对话流程
-        - False / None: 不处理
+        - None: 不处理（用户可在此自行调用 app.send_to_openclaw 等方法）
     """
     if source == "kws":
         # Check if the keyword matches an OpenClaw wake word
         if "龙虾" in text:
-            await speaker.play(text="我在")
+            await speaker.play(text="龙虾来了")
             return "openclaw"
 
-        # Default: wake up XiaoZhi
-        await speaker.play(text="小智来了")
-        return True
+        if "小智" in text:
+            await speaker.play(text="小智来了")
+            return "xiaozhi"
+        return None
 
     if source == "xiaoai":
-        if "小白" in text:
-            # 打断原来的小爱同学回复
+        if text == "召唤龙虾":
             await speaker.abort_xiaoai()
-
-            text = text.split("小白", 1)[1].replace("让他", "", 1).strip()
-
-            forwarded_text = text + "\n注意：将结果处理成纯文字版， 不要返回任何 markdown 格式，也不要包含任何代码块，并将字数控制在300字以内"
-            # 如果想让 Agent 自主调用 TTS 播报结果，可在消息末尾加入提示，引导 Agent 调用 xiaoai-tts skill 播报结果, 可根据自己的使用场景适当调整提示内容
-            # forwarded_text = text + "\n注意：这条消息是主人通过小爱音箱发送的，他看不到你回复的文字，选一个适合的音色调用 xiaoai-tts skill 将结果播报出来"
-
-            success = await app.send_to_openclaw(forwarded_text)
-            if not success:
-                import time; time.sleep(2)
-                await speaker.play(text="OpenClaw 未在线")
-            return False
+            return "openclaw"  # OpenClaw 连续对话
 
         if text == "召唤小智":
-            # 打断原来的小爱同学回复
             await speaker.abort_xiaoai()
-            # 唤醒小智 AI
-            return True
+            return "xiaozhi"  # 小智 AI
+
+        if "让龙虾" in text:
+            await speaker.abort_xiaoai()
+            # 单次代理：发送给 OpenClaw 并自动 TTS 播报回复
+            await app.send_to_openclaw_and_play_reply(text.replace("让龙虾", ""))
+            return None  # 框架不做额外处理
+
+        if "告诉龙虾" in text:
+            await speaker.abort_xiaoai()
+            # 只发送，不播报（由 Agent 自行调用 xiaoai-tts skill 播报）
+            await app.send_to_openclaw(text.replace("告诉龙虾", ""))
+            return None
 
 
 async def after_wakeup(speaker, source="xiaozhi"):
@@ -63,9 +62,9 @@ async def after_wakeup(speaker, source="xiaozhi"):
         - 'openclaw': OpenClaw 连续对话退出
     """
     if source == "openclaw":
-        await speaker.play(text="好的，再见")
-    else:
-        await speaker.play(url="http://127.0.0.1:8080/bye.wav")
+        await speaker.play(text="龙虾，再见")
+    if source == "xiaozhi":
+        await speaker.play(text="小智，再见")
 
 APP_CONFIG = {
     "wakeup": {
@@ -73,7 +72,7 @@ APP_CONFIG = {
         "keywords": [
             "你好小智",
             "小智小智",
-            "hi siri",
+            "hi openclaw",
             "你好龙虾",
             "龙虾你好",
         ],
@@ -83,6 +82,12 @@ APP_CONFIG = {
         "before_wakeup": before_wakeup,
         # 退出唤醒时的提示语（设置为空可关闭）
         "after_wakeup": after_wakeup,
+    },
+    "kws": {
+        # 唤醒词置信度加成（越高越难误触发，越低越灵敏）
+        "keywords_score": 2.0,
+        # 唤醒词检测阈值（越低越灵敏，越高越难触发）
+        "keywords_threshold": 0.2,
     },
     "vad": {
         # 语音检测阈值（0-1，越小越灵敏）
@@ -116,8 +121,6 @@ APP_CONFIG = {
             "access_key": "xxxxxx",       # 你的 Access Key
             "default_speaker": "zh_female_vv_uranus_bigtts",  # 音色 https://www.volcengine.com/docs/6561/1257544?lang=zh
             "audio_format": "pcm",  # 推荐默认值：局域网稳定环境下首音更快、播放更顺
-            # "audio_format": "auto",  # 可选：短文本用 pcm，长文本用 mp3
-            # "auto_pcm_max_chars": 120,  # audio_format=auto 时，短文本阈值
             "stream": True,  # 推荐默认值：边合成边播放，首音延迟更低
         }
     },
@@ -127,14 +130,11 @@ APP_CONFIG = {
         "token": "your_openclaw_token",  # OpenClaw 认证令牌
         "session_key": "agent:main:open-xiaoai-bridge", # 会话标识
         "identity_path": "/app/openclaw/identity/device.json",  # 设备身份文件路径；容器部署时建议挂载持久化目录
-        # tts_enabled = True:  服务端自动播放回复，稳定性好、响应快，但只能使用固定音色和语速
-        # tts_enabled = False: 由 Agent 主动调用 skills/xiaoai-tts，可灵活控制音色、语速、情感等，但稳定性和响应速度较差
-        "tts_enabled": True,  # 是否由服务端自动 TTS 播报 OpenClaw 回复
         "tts_speed": 1.0,  # TTS 语速 (0.5-2.0, 1.0 为正常语速)
         "tts_speaker": "zh_female_vv_uranus_bigtts",  # 可选：自定义音色，不设置则使用 tts.doubao.default_speaker
         "response_timeout": 120,  # 等待 OpenClaw agent 响应的超时时间（秒）
-        # OpenClaw 连续对话配置
         "exit_keywords": ["退出", "停止", "再见"],  # 退出连续对话的关键词
-        "timeout": 20,  # 静音多久后自动退出对话（秒）
+        # 每次发送消息时自动追加的指令后缀（约束规范，会自动在前面加换行符）
+        "rule_prompt": "注意：将结果处理成纯文字版，不要返回任何 markdown 格式，也不要包含任何代码块，并将字数控制在300字以内"
     },
 }

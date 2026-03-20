@@ -134,7 +134,6 @@ APP_CONFIG = {
         "tts_speaker": "xiaoai",  # "xiaoai" = 小爱原生 TTS；填豆包音色 ID 则用豆包 TTS；不设置则使用 tts.doubao.default_speaker
         "response_timeout": 120,  # 等待 OpenClaw agent 响应的超时时间（秒）
         "exit_keywords": ["退出", "停止", "再见"],  # 退出连续对话的关键词
-        # 每次发送消息时自动追加的指令后缀（约束规范，会自动在前面加换行符）
-        "rule_prompt": "注意：将结果处理成纯文字版，不要返回任何 markdown 格式，也不要包含任何代码块，并将字数控制在300字以内"
+        "rule_prompt": "注意：将结果处理成纯文字版，不要返回任何 markdown 格式，也不要包含任何代码块，并将字数控制在300字以内" # 每次发送消息时自动追加的指令后缀（约束规范）
     },
 }

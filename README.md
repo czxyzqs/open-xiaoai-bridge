@@ -1,16 +1,36 @@
+<div align="center">
+
 # Open-XiaoAI Bridge
-
-小爱音箱与外部 AI 服务（小智 AI、OpenClaw）的桥接器。
-
-打破小爱音箱的封闭生态，灵活接入多种 AI 服务，提供 HTTP API 实现远程控制。
 
 [![Python](https://img.shields.io/badge/Python-3.12+-3776ab?logo=python&logoColor=white)](https://www.python.org/) [![Rust](https://img.shields.io/badge/Rust-native_module-dea584?logo=rust&logoColor=white)](https://www.rust-lang.org/) [![License](https://img.shields.io/badge/License-MIT-green)](LICENSE) [![GitHub Stars](https://img.shields.io/github/stars/coderzc/open-xiaoai-bridge?style=flat&logo=github)](https://github.com/coderzc/open-xiaoai-bridge/stargazers) [![Docker Image](https://img.shields.io/badge/ghcr.io-open--xiaoai--bridge-2496ed?logo=docker&logoColor=white)](https://ghcr.io/coderzc/open-xiaoai-bridge) [![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS-lightgrey)](https://github.com/coderzc/open-xiaoai-bridge)
 
+[![New](https://img.shields.io/badge/✨_新功能-OpenClaw_支持_自定义唤醒词_|_连续对话_|_克隆音色_|_流式播放-f97316)](https://github.com/coderzc/open-xiaoai-bridge/releases)
+
+**小爱音箱与外部 AI 服务（小智 AI、OpenClaw）的桥接器**
+
+打破小爱音箱的封闭生态，灵活接入多种 AI 服务，提供 HTTP API 实现远程控制。
+
+[📺 演示视频](https://www.bilibili.com/video/BV1DHcBz1Ex7) · [📖 快速开始](#快速开始) · [🔧 API 文档](#api-server) · [🐛 常见问题](#常见问题)
+
+</div>
+
 > 本项目由 [Open-XiaoAI](https://github.com/idootop/open-xiaoai) 的 `examples/xiaozhi/` 演进而来，已成为独立项目。
 
-**演示视频：** <https://www.bilibili.com/video/BV1DHcBz1Ex7>
+---
 
-## 功能一览
+## 📋 目录
+
+- [✨ 功能一览](#-功能一览)
+- [🏗️ 系统架构](#️-系统架构)
+- [🚀 快速开始](#-快速开始)
+- [🔌 API Server](#-api-server)
+- [🦞 OpenClaw 集成](#-openclaw-集成)
+- [❓ 常见问题](#-常见问题)
+- [📚 参考资源](#-参考资源)
+
+---
+
+## ✨ 功能一览
 
 | 功能 | 说明 |
 |------|------|
@@ -22,7 +42,9 @@
 | 🌐 **HTTP API** | 远程播放文字/音频、控制音箱 |
 | 🧩 **模块化** | 各功能独立开关，按需启用 |
 
-## 系统架构
+---
+
+## 🏗️ 系统架构
 
 ```mermaid
 flowchart TB
@@ -160,7 +182,7 @@ flowchart TB
 
 ### 工作流程
 
-**小智唤醒与对话**
+**🎯 小智唤醒与对话**
 
 ```
 麦克风 → client → server → XiaoAI → GlobalStream → KWS/小爱 ASR
@@ -168,14 +190,14 @@ flowchart TB
 → XiaoZhi start/stop listening → xiaozhi-esp32-server
 ```
 
-**小爱连续对话**
+**🔄 小爱连续对话**
 
 ```
 小爱 ASR / AudioPlayer 事件 → XiaoAIConversationController
 → 决定继续唤醒或退出
 ```
 
-**OpenClaw 代理（单次）**
+**🦞 OpenClaw 代理（单次）**
 
 ```
 小爱指令 "让龙虾 xxx" → before_wakeup() → send_to_openclaw()
@@ -183,7 +205,7 @@ flowchart TB
 → 自动 TTS 播报 或 Agent 主动调用 xiaoai-tts skill
 ```
 
-**OpenClaw 连续对话**
+**💬 OpenClaw 连续对话**
 
 ```
 唤醒词 "你好龙虾" → WakeupSessionManager → OpenClawConversationController
@@ -191,36 +213,38 @@ flowchart TB
 → 说"退出"/"再见"退出
 ```
 
-**远程控制**
+**🌐 远程控制**
 
 ```
 curl POST /api/play/text → API Server → SpeakerManager → 小爱音箱
 ```
 
-## 快速开始
+---
 
-> **本项目仅包含服务端**，需要先在小爱音箱上安装 Client 端。
+## 🚀 快速开始
 
-### 前置步骤
+> **⚠️ 本项目仅包含服务端**，需要先在小爱音箱上安装 Client 端。
 
-1. **刷机** — 更新小爱音箱固件，开启 SSH → [刷机教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md)
-2. **安装 Client** — 在音箱上运行 Rust Client 端 → [安装教程](https://github.com/idootop/open-xiaoai/blob/main/packages/client-rust/README.md)
+### 📦 前置步骤
 
-### 部署服务端
+1. **🔧 刷机** — 更新小爱音箱固件，开启 SSH
+   - [刷机教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md)
 
-#### Docker Compose（推荐）
+2. **🛠️ 安装 Client** — 在音箱上运行 Rust Client 端
+   - [安装教程](https://github.com/idootop/open-xiaoai/blob/main/packages/client-rust/README.md)
+
+### 🐳 Docker Compose（推荐）
 
 ```bash
 # 下载配置文件
 curl -O https://raw.githubusercontent.com/coderzc/open-xiaoai-bridge/main/config.py
 curl -O https://raw.githubusercontent.com/coderzc/open-xiaoai-bridge/main/docker-compose.yml
 
-# 按需修改 config.py 和 docker-compose.yml
-# 启动
+# 按需修改 config.py 和 docker-compose.yml，然后启动
 docker compose up -d
 ```
 
-#### 本地编译
+### 💻 本地编译
 
 ```bash
 git clone https://github.com/coderzc/open-xiaoai-bridge.git
@@ -233,7 +257,7 @@ cd open-xiaoai-bridge
 API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 ./scripts/start.sh
 ```
 
-脚本会自动检查依赖、下载模型、生成关键词文件。也可以手动：
+脚本会自动检查依赖、下载模型、生成关键词文件。也可以手动运行：
 
 ```bash
 uv sync && uv run main.py
@@ -245,7 +269,7 @@ uv sync && uv run main.py
 CONFIG_PATH=/path/to/custom_config.py uv run main.py
 ```
 
-### 环境变量
+### ⚙️ 环境变量
 
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
@@ -257,25 +281,27 @@ CONFIG_PATH=/path/to/custom_config.py uv run main.py
 | `CONFIG_PATH` | 自定义配置文件路径 | `./config.py` |
 | `LOGLEVEL` | 日志级别 | `INFO` |
 
-## API Server
+---
 
-设置 `API_SERVER_ENABLE=1` 启用，默认端口 9092。
+## 🔌 API Server
 
-### 端点
+设置 `API_SERVER_ENABLE=1` 启用，默认端口 **9092**。
+
+### 📡 端点列表
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/play/text` | 播放文字（TTS） |
-| POST | `/api/play/url` | 播放音频链接 |
-| POST | `/api/play/file` | 上传并播放音频文件 |
-| POST | `/api/tts/doubao` | 豆包 TTS 合成并播放 |
-| GET | `/api/tts/doubao_voices` | 获取可用音色列表 |
-| POST | `/api/wakeup` | 唤醒小爱音箱 |
-| POST | `/api/interrupt` | 打断当前播放 |
-| GET | `/api/status` | 获取播放状态 |
-| GET | `/api/health` | 健康检查 |
+| `POST` | `/api/play/text` | 播放文字（TTS） |
+| `POST` | `/api/play/url` | 播放音频链接 |
+| `POST` | `/api/play/file` | 上传并播放音频文件 |
+| `POST` | `/api/tts/doubao` | 豆包 TTS 合成并播放 |
+| `GET` | `/api/tts/doubao_voices` | 获取可用音色列表 |
+| `POST` | `/api/wakeup` | 唤醒小爱音箱 |
+| `POST` | `/api/interrupt` | 打断当前播放 |
+| `GET` | `/api/status` | 获取播放状态 |
+| `GET` | `/api/health` | 健康检查 |
 
-### 示例
+### 💡 使用示例
 
 ```bash
 # 播放文字
@@ -301,13 +327,15 @@ curl -X POST http://localhost:9092/api/tts/doubao \
 curl -X POST http://localhost:9092/api/interrupt
 ```
 
-## OpenClaw 集成
+---
+
+## 🦞 OpenClaw 集成
 
 通过 [OpenClaw](https://github.com/openclaw/openclaw) 将小爱音箱变成你的 AI Agent 终端。
 
-### 三种交互方式
+### 🎯 三种交互方式
 
-#### 🎙️ 连续对话
+#### 🎙️ 方式一：连续对话
 
 用自定义唤醒词触发后进入多轮对话循环，全程本地处理，不依赖小爱 ASR：
 
@@ -319,9 +347,9 @@ curl -X POST http://localhost:9092/api/interrupt
 - 小爱唤醒时自动打断 TTS 并退出
 - 退出关键词可自定义
 
-触发方式见下方[自定义唤醒词](#自定义唤醒词)，`before_wakeup` 返回 `"openclaw"` 即进入连续对话。
+触发方式见下方[自定义唤醒词](#-自定义唤醒词)，`before_wakeup` 返回 `"openclaw"` 即进入连续对话。
 
-#### 💬 单次对话（发送并播报）
+#### 💬 方式二：单次对话（发送并播报）
 
 通过小爱语音指令发送一条消息给 Agent，收到回复后自动 TTS 播报：
 
@@ -335,9 +363,9 @@ if "让龙虾" in text:
 
 用户说"让龙虾查一下明天天气" → 打断小爱 → 发给 Agent → TTS 播报回复。
 
-#### 📡 单次对话（Agent 自主播报）
+#### 📡 方式三：单次对话（Agent 自主播报）
 
-只发送消息，不自动播报，由 Agent 自己决定何时、如何回复（例如通过 `xiaoai-tts` skill 调用 HTTP API 播报）：
+只发送消息，不自动播报，由 Agent 自己决定何时、如何回复：
 
 ```python
 if "告诉龙虾" in text:
@@ -348,7 +376,7 @@ if "告诉龙虾" in text:
 
 适合 Agent 需要做复杂处理后再决定是否/如何播报的场景。
 
-### 自定义唤醒词
+### 🎙️ 自定义唤醒词
 
 唤醒词在 `config.py` 的 `wakeup.keywords` 中定义，支持中英文混合：
 
@@ -387,12 +415,11 @@ async def before_wakeup(speaker, text, source, app):
     # 返回 None → 交给小爱原生处理
 ```
 
-> **返回值含义：** `"openclaw"` → 连续对话，`"xiaozhi"` → 小智 AI，`None` → 不处理（用户可自行调用 `app.send_to_openclaw()` 等方法）
+**返回值含义：** `"openclaw"` → 连续对话，`"xiaozhi"` → 小智 AI，`None` → 不处理（用户可自行调用 `app.send_to_openclaw()` 等方法）
 
-### rule_prompt — 约束 Agent 输出格式
+### 📝 rule_prompt — 约束 Agent 输出格式
 
-`rule_prompt` 会自动追加到每条发给 Agent 的消息末尾，用于约束输出格式。
-因为音箱场景只能播语音，需要告诉 Agent 不要返回 markdown、代码块等无法朗读的内容：
+`rule_prompt` 会自动追加到每条发给 Agent 的消息末尾，用于约束输出格式。音箱场景只能播语音，需要告诉 Agent 不要返回 markdown、代码块等无法朗读的内容：
 
 ```python
 "openclaw": {
@@ -408,7 +435,7 @@ Agent 收到的实际消息：
 
 不需要可以留空或不设置。
 
-### 完整配置
+### 🔧 完整配置
 
 ```python
 APP_CONFIG = {
@@ -427,11 +454,11 @@ APP_CONFIG = {
         "token": "your_token",                              # 认证令牌
         "session_key": "agent:main:open-xiaoai-bridge",     # 会话标识
         "identity_path": "/app/openclaw/identity/device.json",  # 设备身份文件
-        "tts_speed": 1.0,                                  # 语速 (0.5-2.0)，仅豆包 TTS 生效
-        "tts_speaker": "xiaoai",                              # 音色（见下方 TTS 音色说明）
+        "tts_speed": 1.0,                                  # 语速 (0.5-2.0)
+        "tts_speaker": "xiaoai",                              # 音色
         "response_timeout": 120,                            # Agent 响应超时（秒）
         "exit_keywords": ["退出", "停止", "再见"],           # 连续对话退出关键词
-        "rule_prompt": "注意：纯文字，不要 markdown，300字以内",  # 输出格式约束（可选）
+        "rule_prompt": "注意：纯文字，不要 markdown，300字以内",  # 输出格式约束
     },
     "tts": {
         "doubao": {
@@ -445,7 +472,7 @@ APP_CONFIG = {
 }
 ```
 
-### OpenClaw TTS 音色
+### 🎵 OpenClaw TTS 音色
 
 `openclaw.tts_speaker` 支持两种值：
 
@@ -456,9 +483,9 @@ APP_CONFIG = {
 
 豆包音色 ID 示例：`"zh_female_vv_uranus_bigtts"`（Vivi 2.0）、`"S_xxxxxxxx"`（克隆音色）。完整列表见[火山引擎文档](https://www.volcengine.com/docs/6561/1257544)。
 
-> 不设置 `tts_speaker` 时，默认使用 `tts.doubao.default_speaker` 的豆包音色。
+不设置 `tts_speaker` 时，默认使用 `tts.doubao.default_speaker` 的豆包音色。
 
-### 容器部署
+### 🐳 容器部署
 
 挂载 `identity_path` 目录为持久化卷，否则容器重建后需要重新配对设备：
 
@@ -470,23 +497,22 @@ volumes:
 
 首次连接时需到 OpenClaw UI 批准设备：**Nodes → Devices → Approve**
 
-### Skills
+### 🧩 Skills
 
-`skills/xiaoai-tts/` — Agent 通过 HTTP API 控制小爱播放语音，支持小爱内置 TTS 和豆包 TTS。详见 [SKILL.md](skills/xiaoai-tts/SKILL.md)。
+`skills/xiaoai-tts/` — Agent 通过 HTTP API 控制小爱播放语音，支持小爱内置 TTS 和豆包 TTS。
 
-## 常见问题
+📖 详见 [SKILL.md](skills/xiaoai-tts/SKILL.md)
 
-### 小智 AI
+---
 
-<details>
-<summary>如何打断小智 AI 的回答？</summary>
+## ❓ 常见问题
 
+### 🤖 小智 AI
+
+**如何打断小智 AI 的回答？**  
 直接召唤"小爱同学"即可打断。
-</details>
 
-<details>
-<summary>第一次运行提示验证码绑定设备？</summary>
-
+**第一次运行提示验证码绑定设备？**  
 打开小智 AI [管理后台](https://xiaozhi.me/)，根据提示创建 Agent 绑定设备。验证码会在终端打印或写入 `config.py`：
 
 ```python
@@ -498,11 +524,8 @@ APP_CONFIG = {
 ```
 
 绑定成功后可能需要重启应用。
-</details>
 
-<details>
-<summary>怎样使用自己部署的 xiaozhi-esp32-server？</summary>
-
+**怎样使用自己部署的 xiaozhi-esp32-server？**  
 修改 `config.py` 中的接口地址：
 
 ```python
@@ -513,11 +536,20 @@ APP_CONFIG = {
     },
 }
 ```
-</details>
 
-<details>
-<summary>话没说完 AI 就开始回答？</summary>
+**模型文件在哪下载？**  
+从 [releases](https://github.com/coderzc/open-xiaoai-bridge/releases/tag/vad-kws-asr-models) 下载 VAD + KWS + ASR 模型，解压到 `core/models/`。
 
+Docker 部署需挂载：
+
+```yaml
+volumes:
+  - ./models:/app/core/models
+```
+
+### 🎙️ 唤醒词与连续对话
+
+**话没说完 AI 就开始回答？**  
 调大 `min_silence_duration`：
 
 ```python
@@ -527,55 +559,27 @@ APP_CONFIG = {
     },
 }
 ```
-</details>
 
-<details>
-<summary>唤醒词没反应？</summary>
-
+**唤醒词没反应？**  
 - 调低 `vad.threshold`（越小越灵敏，如 `0.05`）
 - 启动后需等约 30s 加载模型
 - 英文唤醒词用空格分开（如 `"open ai"`）
 - 换更易识别的唤醒词
-</details>
 
-<details>
-<summary>模型文件在哪下载？</summary>
+### 🦞 OpenClaw
 
-从 [releases](https://github.com/coderzc/open-xiaoai/releases/tag/vad-kws-models) 下载 VAD + KWS 模型，解压到 `core/models/`。
+**首次连接出现 pairing required？**  
+正常流程。保持服务在线，到 OpenClaw UI 批准设备：**Nodes → Devices → Approve**。容器部署注意事项见[容器部署](#-容器部署)。
 
-Docker 部署需挂载：
-
-```yaml
-volumes:
-  - ./models:/app/core/models
-```
-</details>
-
-### OpenClaw
-
-<details>
-<summary>首次连接出现 pairing required？</summary>
-
-正常流程。保持服务在线，到 OpenClaw UI 批准设备：**Nodes → Devices → Approve**。容器部署注意事项见[容器部署](#容器部署)。
-</details>
-
-<details>
-<summary>session_key 是什么？</summary>
-
+**session_key 是什么？**  
 告诉 Gateway 把消息路由到哪个 Agent 会话，对应 OpenClaw 中配置的 session 标识。
-</details>
 
-<details>
-<summary>send_to_openclaw() 的返回值是什么？</summary>
-
+**send_to_openclaw() 的返回值是什么？**
 - `send_to_openclaw(text)` → 成功返回 `run_id`（str），失败返回 `None`
 - `send_to_openclaw(text, wait_response=True)` → 成功返回回复文本，超时/失败返回 `None`
 - `send_to_openclaw_and_play_reply(text)` → 同上，但会自动 TTS 播放回复
-</details>
 
-<details>
-<summary>如何使用声音复刻？</summary>
-
+**如何使用声音复刻？**
 1. 在[火山引擎声音复刻控制台](https://console.volcengine.com/speech/new/experience/clone)上传 10-30 秒音频
 2. 训练完成后到[音色库](https://console.volcengine.com/speech/new/voices?projectName=default)复制音色 ID（格式 `S_xxxxxxxx`）
 3. 填入配置：
@@ -587,12 +591,10 @@ volumes:
     }
 }
 ```
-</details>
 
-### TTS 流式播放
+### 🔊 TTS 流式播放
 
-<details>
-<summary>支持流式播放吗？怎么配置？</summary>
+**支持流式播放吗？怎么配置？**
 
 支持。推荐配置：
 
@@ -616,19 +618,32 @@ volumes:
 python3 tests/test_tts_stream.py
 python3 tests/test_tts_latency.py --formats mp3,pcm --rounds 3 --repeat 8
 ```
-</details>
 
-### 连接问题排查
+### 🔧 连接问题排查
 
 1. 确认 Gateway / xiaozhi-esp32-server 已启动，地址端口可访问
 2. 检查 `config.py` 中的 `url` / `token` 配置
 3. 开启 DEBUG 日志：`LOGLEVEL=DEBUG`
 4. 服务会自动指数退避重连，无需手动重启
 
-## 参考
+---
 
-- [项目主页](https://github.com/coderzc/open-xiaoai-bridge)
-- [刷机教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md)
-- [Client 端安装](https://github.com/idootop/open-xiaoai/blob/main/packages/client-rust/README.md)
-- [Opus 安装说明](https://github.com/huangjunsen0406/py-xiaozhi/blob/3bfd2887244c510a13912c1d63263ae564a941e9/documents/docs/guide/01_%E7%B3%BB%E7%BB%9F%E4%BE%9D%E8%B5%96%E5%AE%89%E8%A3%85.md#2-opus-%E9%9F%B3%E9%A2%91%E7%BC%96%E8%A7%A3%E7%A0%81%E5%99%A8)
-- [豆包 TTS 音色列表](https://www.volcengine.com/docs/6561/1257544)
+## 📚 参考资源
+
+| 资源 | 链接 |
+|------|------|
+| 📁 项目主页 | [github.com/coderzc/open-xiaoai-bridge](https://github.com/coderzc/open-xiaoai-bridge) |
+| 🔧 刷机教程 | [刷机教程](https://github.com/idootop/open-xiaoai/blob/main/docs/flash.md) |
+| 🛠️ Client 端安装 | [Client 端安装](https://github.com/idootop/open-xiaoai/blob/main/packages/client-rust/README.md) |
+| 🎵 Opus 安装说明 | [Opus 安装说明](https://github.com/huangjunsen0406/py-xiaozhi/blob/3bfd2887244c510a13912c1d63263ae564a941e9/documents/docs/guide/01_%E7%B3%BB%E7%BB%9F%E4%BE%9D%E8%B5%96%E5%AE%89%E8%A3%85.md#2-opus-%E9%9F%B3%E9%A2%91%E7%BC%96%E8%A7%A3%E7%A0%81%E5%99%A8) |
+| 🎙️ 豆包 TTS 音色列表 | [火山引擎文档](https://www.volcengine.com/docs/6561/1257544) |
+
+---
+
+<div align="center">
+
+**Made with ❤️ by [coderzc](https://github.com/coderzc)**
+
+如果这个项目对你有帮助，请给它一颗 ⭐️
+
+</div>

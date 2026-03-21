@@ -23,7 +23,7 @@
 | 功能                 | 说明                                                                             |
 | ------------------ | ------------------------------------------------------------------------------ |
 | 🦞 **OpenClaw 集成** | 接入 [OpenClaw](https://github.com/openclaw/openclaw)，支持连续对话，可选豆包 TTS 或小爱原生 TTS  |
-| 🤖 **小智 AI 集成**    | 接入 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) |
+| 🤖 **小智 AI 集成**    | 接入 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server) 实时音频流 |
 | 🎙️ **自定义唤醒词**     | 支持中英文，不同唤醒词可路由到不同 AI 服务或不同 OpenClaw Agent                                      |
 | 🧠 **多 Agent 路由**  | 一台音箱，多个唤醒词，每个唤醒词对应不同的 OpenClaw Agent Session，动态切换零开销                           |
 | 💬 **连续对话**        | 多轮对话无需反复唤醒，喊"小爱同学"可随时打断                                                        |
@@ -348,18 +348,16 @@ if "让龙虾" in text:
 
 #### 📡 方式三：单次对话（Agent 自主播报）
 
-只发送消息，不自动播报，需要在消息里告诉 Agent 调用 `xiaoai-tts` skill 播报：
+只发送消息，不自动播报，由 Agent 调用 `xiaoai-tts` skill 自主播报：
 
 ```python
 if "告诉龙虾" in text:
     await speaker.abort_xiaoai()
-    prompt = text.replace("告诉龙虾", "")
-    prompt += "\n注意：这条消息是主人通过小爱音箱发送的，他看不到你回复的文字，调用 `xiaoai-tts` skill 播报出来。但如果是操作类的先去操作然后播报你操作的结果，不要每次都搞得那么正式，字数控制在 300 字以内"
-    await app.send_to_openclaw(prompt)
+    await app.send_to_openclaw(text.replace("告诉龙虾", ""))
     return None
 ```
 
-适合 Agent 需要做复杂处理后再决定是否/如何播报的场景。
+`send_to_openclaw()` 会自动追加 `rule_prompt_for_skill`（配置在 `config.py` 中），告诉 Agent 需要调用 skill 播报。适合 Agent 需要做复杂处理后再决定是否/如何播报的场景。
 
 ### 🎙️ 自定义唤醒词
 
@@ -509,6 +507,31 @@ async def after_wakeup(speaker, source=None, session_key=None):
 `skills/xiaoai-tts/` — Agent 通过 HTTP API 控制小爱播放语音，支持小爱内置 TTS 和豆包 TTS。
 
 📖 详见 [SKILL.md](skills/xiaoai-tts/SKILL.md)
+
+***
+
+## 🤖 小智 AI 集成
+
+接入 [xiaozhi-esp32-server](https://github.com/xinnan-tech/xiaozhi-esp32-server)，使用小智 AI 的对话能力。
+
+### 配置
+
+```python
+APP_CONFIG = {
+    "xiaozhi": {
+        "OTA_URL": "http://127.0.0.1:8003/xiaozhi/ota/",
+        "WEBSOCKET_URL": "ws://127.0.0.1:8000/xiaozhi/v1/",
+        "WEBSOCKET_ACCESS_TOKEN": "",  # 可选
+        # "DEVICE_ID": "",  # 可选，默认自动生成
+    },
+}
+```
+
+### 使用
+
+唤醒词触发后，`before_wakeup` 返回 `"xiaozhi"` 即进入小智对话流程。
+
+详见[自定义唤醒词](#-自定义唤醒词)章节。
 
 ***
 
@@ -690,7 +713,8 @@ APP_CONFIG = {
 
 1. 在[火山引擎声音复刻控制台](https://console.volcengine.com/speech/new/experience/clone)上传 10-30 秒音频
 2. 训练完成后到[音色库](https://console.volcengine.com/speech/new/voices?projectName=default)复制音色 ID（格式 `S_xxxxxxxx`）
-3. 填入配置：
+3. **重要**：确保复刻音色与 `tts.doubao.app_id` 属于**同一个火山引擎项目**，否则无法使用
+4. 填入配置：
 
 ```python
 "tts": {

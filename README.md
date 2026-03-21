@@ -197,7 +197,7 @@ flowchart TB
 → 决定继续唤醒或退出
 ```
 
-**🦞 OpenClaw 代理（单次）**
+**🦞 OpenClaw 单次对话**
 
 ```
 小爱指令 "让龙虾 xxx" → before_wakeup() → send_to_openclaw()
@@ -205,7 +205,7 @@ flowchart TB
 → 自动 TTS 播报 或 Agent 主动调用 xiaoai-tts skill
 ```
 
-**💬 OpenClaw 连续对话**
+**🦞 OpenClaw 连续对话**
 
 ```
 唤醒词 "你好龙虾" → WakeupSessionManager → OpenClawConversationController

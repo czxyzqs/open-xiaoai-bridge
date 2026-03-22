@@ -99,6 +99,24 @@ class WakeupSessionManager:
             return ("interrupted", None)
         return list(done)[0].result()
 
+    async def _stop_device_playback(self):
+        """Stop all audio playback on the device and restart recording.
+
+        - killall tts_play.sh miplayer: stop blocking TTS (tts_play.sh + child miplayer)
+        - mphelper pause: stop non-blocking TTS (mibrain text_to_speech via mediaplayer)
+        - stop_playing: kill aplay (our PCM channel)
+        - start_playing / start_recording: restart audio streams
+        """
+        import open_xiaoai_server
+        speaker = get_speaker()
+        if speaker:
+            await speaker.run_shell(
+                "killall tts_play.sh miplayer 2>/dev/null; mphelper pause"
+            )
+        await open_xiaoai_server.stop_playing()
+        await open_xiaoai_server.start_playing()
+        await open_xiaoai_server.start_recording()
+
     def on_interrupt(self):
         self.session_id += 1
         self._clear_pending_step()
@@ -112,23 +130,7 @@ class WakeupSessionManager:
         elif self._openclaw_controller and self._openclaw_controller.is_active():
             self._openclaw_controller.stop()
 
-        # Stop all audio playback on the device:
-        # - killall tts_play.sh miplayer: stop blocking TTS (tts_play.sh + child miplayer)
-        # - mphelper pause: stop non-blocking TTS (mibrain text_to_speech via mediaplayer)
-        # - stop_playing: kill aplay (our PCM channel)
-        # Also restart recording (may have been stopped by OpenClaw during TTS).
-        async def _stop_and_restart_playing():
-            import open_xiaoai_server
-            speaker = get_speaker()
-            if speaker:
-                await speaker.run_shell(
-                    "killall tts_play.sh miplayer 2>/dev/null; mphelper pause"
-                )
-            await open_xiaoai_server.stop_playing()
-            await open_xiaoai_server.start_playing()
-            await open_xiaoai_server.start_recording()
-
-        asyncio.run_coroutine_threadsafe(_stop_and_restart_playing(), loop)
+        asyncio.run_coroutine_threadsafe(self._stop_device_playback(), loop)
 
         from core.xiaoai import XiaoAI
         XiaoAI.stop_conversation()
@@ -327,6 +329,9 @@ class WakeupSessionManager:
         # Stop OpenClaw continuous conversation
         if self._openclaw_controller and self._openclaw_controller.is_active():
             self._openclaw_controller.stop()
+
+        # Stop all audio playback on the device
+        await self._stop_device_playback()
 
         # Reset wakeup state machine
         self.session_id += 1

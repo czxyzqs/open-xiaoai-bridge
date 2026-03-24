@@ -114,6 +114,16 @@ class SpeakerManager:
         )
         return True
 
+    async def stop_device_audio(self) -> None:
+        """
+        停止设备上的全部播放链路，并重启 PCM 播放通道。
+        """
+        await self.run_shell(
+            "killall tts_play.sh miplayer 2>/dev/null; mphelper pause"
+        )
+        await open_xiaoai_server.stop_playing()
+        await open_xiaoai_server.start_playing()
+
     async def wake_up(self, awake=True, silent=True):
         """
         （取消）唤醒小爱

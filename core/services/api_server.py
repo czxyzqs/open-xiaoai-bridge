@@ -360,16 +360,7 @@ class APIServer:
                     status=503
                 )
 
-            # Stop all audio playback:
-            # - killall tts_play.sh miplayer: stop blocking TTS
-            # - mphelper pause: stop non-blocking TTS / mediaplayer
-            # - stop_playing: kill aplay (PCM channel)
-            import open_xiaoai_server
-            await speaker.run_shell(
-                "killall tts_play.sh miplayer 2>/dev/null; mphelper pause"
-            )
-            await open_xiaoai_server.stop_playing()
-            await open_xiaoai_server.start_playing()
+            await speaker.stop_device_audio()
             # 停止连续对话
             if xiaoai:
                 xiaoai.stop_conversation()

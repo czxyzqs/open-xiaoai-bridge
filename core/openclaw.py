@@ -924,7 +924,12 @@ class OpenClawManager:
             cls._response_tts_speakers.pop(run_id, None)
 
     @classmethod
-    async def _play_response_with_tts(cls, text: str, tts_speaker: str | None = None):
+    async def _play_response_with_tts(
+        cls,
+        text: str,
+        tts_speaker: str | None = None,
+        playback_token: int | None = None,
+    ):
         """Synthesize text using Doubao TTS and play through speaker."""
         try:
             from core.ref import get_speaker
@@ -989,6 +994,7 @@ class OpenClawManager:
                         speed=cls._tts_speed,
                         format=resolved_format,
                         sample_rate=24000,
+                        playback_token=playback_token,
                     )
                     logger.debug("[OpenClaw] TTS stream playback completed")
                 except Exception:
@@ -1005,6 +1011,7 @@ class OpenClawManager:
                     speed=cls._tts_speed,
                     format=resolved_format,
                     sample_rate=24000,
+                    playback_token=playback_token,
                 )
                 logger.debug("[OpenClaw] Response playback completed")
 

@@ -35,12 +35,14 @@ class WakeupSessionManager:
         - stop_playing: kill aplay (our PCM channel)
         - start_playing / start_recording: restart audio streams
         """
-        import open_xiaoai_server
         speaker = get_speaker()
         if speaker:
-            await speaker.run_shell(
-                "killall tts_play.sh miplayer 2>/dev/null; mphelper pause"
-            )
+            await speaker.stop_device_audio()
+            import open_xiaoai_server
+            await open_xiaoai_server.start_recording()
+            return
+
+        import open_xiaoai_server
         await open_xiaoai_server.stop_playing()
         await open_xiaoai_server.start_playing()
         await open_xiaoai_server.start_recording()
@@ -58,11 +60,11 @@ class WakeupSessionManager:
         if xiaozhi:
             xiaozhi.stop_wakeup_session()
 
-        # Cancel the OpenClaw asyncio task (interrupts any blocking TTS await)
+        # Stop OpenClaw conversation (cancels VAD + stops TTS stream + kills aplay)
+        if self._openclaw_controller and self._openclaw_controller.is_active():
+            self._openclaw_controller.stop()
         if self._openclaw_task and not self._openclaw_task.done():
             loop.call_soon_threadsafe(self._openclaw_task.cancel)
-        elif self._openclaw_controller and self._openclaw_controller.is_active():
-            self._openclaw_controller.stop()
 
         asyncio.run_coroutine_threadsafe(self._stop_device_playback(), loop)
 
@@ -173,7 +175,7 @@ class WakeupSessionManager:
             except Exception:
                 pass
 
-        # Stop OpenClaw continuous conversation
+        # Stop OpenClaw continuous conversation (also stops its TTS stream)
         if self._openclaw_controller and self._openclaw_controller.is_active():
             self._openclaw_controller.stop()
 

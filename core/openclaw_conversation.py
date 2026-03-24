@@ -52,6 +52,8 @@ class OpenClawConversationController:
         # Per-session asyncio.Future used to receive VAD events
         self._vad_future: asyncio.Future | None = None
         self._loop: asyncio.AbstractEventLoop | None = None
+        # Playback token for the current TTS session
+        self._playback_token: int | None = None
 
     # ---- config helpers ----
 
@@ -97,6 +99,9 @@ class OpenClawConversationController:
             return
         self.active = False
         self._cancel_vad_future()
+        if self._playback_token is not None:
+            open_xiaoai_server.stop_tts_playback(self._playback_token)
+            self._playback_token = None
         logger.info("👋 退出 OpenClaw 连续对话模式", module="OpenClaw Conv")
 
     # ---- conversation loop ----
@@ -325,10 +330,12 @@ class OpenClawConversationController:
 
     async def _play_tts(self, text: str):
         """Play text via Doubao TTS (blocks until playback finishes)."""
+        self._playback_token = open_xiaoai_server.begin_playback_session()
         try:
             await OpenClawManager._play_response_with_tts(
                 text,
                 tts_speaker=OpenClawManager.get_tts_speaker_for_session_key(),
+                playback_token=self._playback_token,
             )
         except Exception as exc:
             logger.error(
@@ -338,6 +345,8 @@ class OpenClawConversationController:
             speaker = get_speaker()
             if speaker:
                 await speaker.play(text=text)
+        finally:
+            self._playback_token = None
 
     async def _play_notify(self):
         """Play the listening-ready notification sound via PCM buffer."""

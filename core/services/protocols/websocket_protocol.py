@@ -24,6 +24,7 @@ class WebsocketProtocol(Protocol):
         )
         self.connected = False
         self.hello_received = None  # 初始化时先设为 None
+        self._handler_task = None
         self.WEBSOCKET_URL = self.config.get_config("NETWORK.WEBSOCKET_URL")
         self.WEBSOCKET_ACCESS_TOKEN = self.config.get_config(
             "NETWORK.WEBSOCKET_ACCESS_TOKEN"
@@ -77,8 +78,12 @@ class WebsocketProtocol(Protocol):
                 uri=self.WEBSOCKET_URL, additional_headers=headers
             )
 
+            # Cancel stale handler task from previous connection
+            if self._handler_task and not self._handler_task.done():
+                self._handler_task.cancel()
+
             # 启动消息处理循环
-            asyncio.create_task(self._message_handler())
+            self._handler_task = asyncio.create_task(self._message_handler())
 
             # 发送客户端hello消息
             hello_message = {
@@ -215,6 +220,8 @@ class WebsocketProtocol(Protocol):
             if self.on_network_error:
                 self.on_network_error(f"处理服务器响应失败: {str(e)}")
 
+    _reconnect_attempts = 0
+
     async def close_audio_channel(self):
         """关闭音频通道"""
         if self.websocket:
@@ -226,9 +233,17 @@ class WebsocketProtocol(Protocol):
                     await self._invoke_callback(self.on_audio_channel_closed)
             except Exception:
                 pass
-        logger.info(f"[xiaozhi-esp32-server] {self.WEBSOCKET_URL} 通道被关闭, 尝试重连...")
-        await asyncio.sleep(5)
-        await self.open_audio_channel()
+
+        self._reconnect_attempts += 1
+        delay = min(5 * (2 ** (self._reconnect_attempts - 1)), 60)
+        logger.info(
+            f"[xiaozhi-esp32-server] {self.WEBSOCKET_URL} 通道被关闭, "
+            f"{delay}s 后尝试重连 (第 {self._reconnect_attempts} 次)..."
+        )
+        await asyncio.sleep(delay)
+        success = await self.connect()
+        if success:
+            self._reconnect_attempts = 0
 
     async def heartbeat(self):
         while True:

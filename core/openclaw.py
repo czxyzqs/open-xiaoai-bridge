@@ -481,6 +481,10 @@ class OpenClawManager:
             return None
 
         if not wait_response:
+            # Fire-and-forget: clean up tracking dicts to prevent leak
+            cls._response_events.pop(run_id, None)
+            cls._response_texts.pop(run_id, None)
+            cls._response_tts_speakers.pop(run_id, None)
             return run_id
 
         try:
@@ -729,12 +733,13 @@ class OpenClawManager:
                         # Note: OpenClaw may send a second res for agent method (completed status)
                         # We keep the entry in _pending to handle potential second response
                     elif future and future.done():
-                        # OpenClaw sends second res for agent method, keep logs lightweight.
+                        # Second res for agent method — clean up now that both responses arrived
+                        cls._pending.pop(req_id, None)
                         payload = data.get("payload") if isinstance(data, dict) else {}
                         status = payload.get("status") if isinstance(payload, dict) else None
                         summary = payload.get("summary") if isinstance(payload, dict) else None
                         logger.debug(
-                            f"[OpenClaw] _receiver ignoring second res for req_id={req_id}, status={status}, summary={summary}"
+                            f"[OpenClaw] _receiver cleaned up second res for req_id={req_id}, status={status}, summary={summary}"
                         )
                 except json.JSONDecodeError:
                     logger.warning(f"[OpenClaw] Failed to decode message: {message[:200]}")
@@ -744,6 +749,11 @@ class OpenClawManager:
         except Exception as e:
             logger.warning(f"[OpenClaw] Receiver error: {type(e).__name__}: {e}")
         finally:
+            # Clean up all pending futures to prevent leak on disconnect
+            for req_id, fut in list(cls._pending.items()):
+                if not fut.done():
+                    fut.cancel()
+            cls._pending.clear()
             cls._connected = False
             cls._trigger_reconnect()
 

@@ -30,6 +30,7 @@ class XiaoAI:
     _async_loop_ready = threading.Event()
     _external_wakeup_keywords: set[str] = set()
     _suppressed_dialog_ids: set[str] = set()
+    _MAX_SUPPRESSED_DIALOGS = 100
 
     @classmethod
     def refresh_runtime_config(cls, *_args):
@@ -59,6 +60,14 @@ class XiaoAI:
     async def _suppress_dialog(cls, dialog_id: str, reason: str):
         if not dialog_id:
             return
+
+        # Prevent unbounded growth: if too many stale dialog_ids accumulated
+        # (missed Dialog.Finish events), clear them all before adding new one
+        if len(cls._suppressed_dialog_ids) >= cls._MAX_SUPPRESSED_DIALOGS:
+            logger.debug(
+                f"[XiaoAI] Clearing {len(cls._suppressed_dialog_ids)} stale suppressed dialog_ids"
+            )
+            cls._suppressed_dialog_ids.clear()
 
         is_new_dialog = dialog_id not in cls._suppressed_dialog_ids
         cls._suppressed_dialog_ids.add(dialog_id)

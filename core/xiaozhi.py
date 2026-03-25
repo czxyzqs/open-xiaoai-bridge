@@ -382,60 +382,61 @@ class XiaoZhi:
         speaker = get_speaker()
 
         try:
-            self.set_device_state(DeviceState.IDLE)
-            await self.send_abort_speaking(AbortReason.ABORT)
-
-            if self._is_first_round:
-                self._is_first_round = False
-                await self._play_notify(speaker)
-
-            # Wait for speech
-            vad.resume("speech")
-            result = await self._wait_vad_event(
-                timeout=self.config.get_app_config("wakeup.timeout", 20)
-            )
-            if result is None:
+            while True:
                 self.set_device_state(DeviceState.IDLE)
-                logger.info("Wakeup timeout, exit listening", module="XiaoZhi")
-                after_wakeup = self.config.get_app_config("wakeup.after_wakeup")
-                if after_wakeup and speaker:
-                    await after_wakeup(speaker)
-                return
+                await self.send_abort_speaking(AbortReason.ABORT)
 
-            event_type, event_data = result
-            if event_type != "speech":
-                logger.debug(f"Expected speech, got {event_type}", module="XiaoZhi")
-                return
+                if self._is_first_round:
+                    self._is_first_round = False
+                    await self._play_notify(speaker)
 
-            # Speech detected — send buffered audio and start listening
-            logger.debug(
-                f"VAD detected speech, buffer size: {len(event_data or b'')}",
-                module="XiaoZhi",
-            )
-            set_speech_frames(event_data)
-            if codec:
-                codec.input_stream.start_stream()
-            await self.send_start_listening(ListeningMode.MANUAL)
-            self.set_device_state(DeviceState.LISTENING)
+                # Wait for speech
+                vad.resume("speech")
+                result = await self._wait_vad_event(
+                    timeout=self.config.get_app_config("wakeup.timeout", 20)
+                )
+                if result is None:
+                    self.set_device_state(DeviceState.IDLE)
+                    logger.info("Wakeup timeout, exit listening", module="XiaoZhi")
+                    after_wakeup = self.config.get_app_config("wakeup.after_wakeup")
+                    if after_wakeup and speaker:
+                        await after_wakeup(speaker)
+                    return
 
-            # Wait for silence
-            vad.resume("silence")
-            result = await self._wait_vad_event()
-            if result:
-                event_type, _ = result
-                logger.debug(f"VAD detected silence, stop listening", module="XiaoZhi")
+                event_type, event_data = result
+                if event_type != "speech":
+                    logger.debug(f"Expected speech, got {event_type}", module="XiaoZhi")
+                    return
 
-            # Prepare TTS stop future before sending stop_listening,
-            # so we don't miss the tts_stop event.
-            self._tts_stop_future = self._session_loop.create_future()
+                # Speech detected — send buffered audio and start listening
+                logger.debug(
+                    f"VAD detected speech, buffer size: {len(event_data or b'')}",
+                    module="XiaoZhi",
+                )
+                set_speech_frames(event_data)
+                if codec:
+                    codec.input_stream.start_stream()
+                await self.send_start_listening(ListeningMode.MANUAL)
+                self.set_device_state(DeviceState.LISTENING)
 
-            await self.send_stop_listening()
-            self.set_device_state(DeviceState.IDLE)
+                # Wait for silence
+                vad.resume("silence")
+                result = await self._wait_vad_event()
+                if result:
+                    event_type, _ = result
+                    logger.debug(f"VAD detected silence, stop listening", module="XiaoZhi")
 
-            # Wait for TTS to finish, then start next round
-            tts_finished = await self._wait_tts_stop(timeout=30)
-            if tts_finished:
-                await self.start_wakeup_session()
+                # Prepare TTS stop future before sending stop_listening,
+                # so we don't miss the tts_stop event.
+                self._tts_stop_future = self._session_loop.create_future()
+
+                await self.send_stop_listening()
+                self.set_device_state(DeviceState.IDLE)
+
+                # Wait for TTS to finish, then start next round
+                tts_finished = await self._wait_tts_stop(timeout=30)
+                if not tts_finished:
+                    break
         except asyncio.CancelledError:
             logger.debug("Wakeup session cancelled", module="XiaoZhi")
             raise

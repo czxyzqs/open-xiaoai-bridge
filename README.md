@@ -92,7 +92,7 @@ cd open-xiaoai-bridge
 # Linux 还需要: pkg-config, patchelf
 
 # 启动（按需设置环境变量）
-API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 ./scripts/start.sh
+API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLE=1 ./scripts/start.sh
 ```
 
 ### ⚙️ 环境变量
@@ -100,7 +100,7 @@ API_SERVER_ENABLE=1 XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 ./scripts/start.sh
 | 变量                  | 说明          | 默认值           |
 | ------------------- | ----------- | ------------- |
 | `XIAOZHI_ENABLE`    | 启用小智 AI     | 禁用            |
-| `OPENCLAW_ENABLED`  | 启用 OpenClaw | 禁用            |
+| `OPENCLAW_ENABLE`   | 启用 OpenClaw | 禁用            |
 | `API_SERVER_ENABLE` | 启用 HTTP API | 禁用            |
 | `API_SERVER_HOST`   | API 监听地址    | `127.0.0.1`   |
 | `API_SERVER_PORT`   | API 监听端口    | `9092`        |
@@ -336,7 +336,7 @@ curl -X POST http://localhost:9092/api/interrupt
 
 通过 [OpenClaw](https://github.com/openclaw/openclaw) 将小爱音箱变成你的 AI Agent 终端。
 
-设置 `OPENCLAW_ENABLED=1` 启用
+设置 `OPENCLAW_ENABLE=1` 启用（兼容旧值 `OPENCLAW_ENABLED`）
 
 ### 🎯 交互方式
 

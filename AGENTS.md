@@ -261,13 +261,13 @@ XIAOZHI_ENABLE=1 uv run main.py
 
 ### 模式 3: OpenClaw
 ```bash
-OPENCLAW_ENABLED=1 uv run main.py
+OPENCLAW_ENABLE=1 uv run main.py
 ```
 - 小爱指令拦截 → 转发到 OpenClaw → TTS 播放结果
 
 ### 模式 4: 小智 + OpenClaw（混合）
 ```bash
-XIAOZHI_ENABLE=1 OPENCLAW_ENABLED=1 uv run main.py
+XIAOZHI_ENABLE=1 OPENCLAW_ENABLE=1 uv run main.py
 ```
 - config.py `before_wakeup` 按唤醒词路由到小智或 OpenClaw 连续对话
 - OpenClaw 连续对话：VAD → ASR → OpenClaw → TTS 循环

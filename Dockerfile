@@ -61,4 +61,5 @@ ENV LD_LIBRARY_PATH=/app/.venv/lib/python3.12/site-packages/onnxruntime/capi
 EXPOSE 9092
 
 # 先初始化关键词模型（小智或 OpenClaw 启用时），然后启动主程序
-CMD ["/bin/bash", "-c", "source /app/.venv/bin/activate && if [[ \"${XIAOZHI_ENABLE:-}\" =~ ^(1|true|yes)$ ]] || [[ \"${OPENCLAW_ENABLED:-}\" =~ ^(1|true|yes)$ ]]; then python core/services/audio/kws/keywords.py; fi && python main.py"]
+# 兼容 OPENCLAW_ENABLE (新) 和 OPENCLAW_ENABLED (旧)
+CMD ["/bin/bash", "-c", "source /app/.venv/bin/activate && OPENCLAW_VAL=\"${OPENCLAW_ENABLE:-${OPENCLAW_ENABLED:-}}\"; if [[ \"${XIAOZHI_ENABLE:-}\" =~ ^(1|true|yes)$ ]] || [[ \"$OPENCLAW_VAL\" =~ ^(1|true|yes)$ ]]; then python core/services/audio/kws/keywords.py; fi && python main.py"]

@@ -16,7 +16,7 @@ Configuration:
         }
 
     2. Environment variables:
-        export OPENCLAW_ENABLED=1
+        export OPENCLAW_ENABLE=1  # 兼容旧值 OPENCLAW_ENABLED
 
 Usage:
     from core.openclaw import OpenClawManager
@@ -139,7 +139,8 @@ class OpenClawManager:
         if enabled is not None:
             cls._enabled = enabled
         else:
-            env_enabled = get_env("OPENCLAW_ENABLED")
+            # 兼容 OPENCLAW_ENABLE (新) 和 OPENCLAW_ENABLED (旧)
+            env_enabled = get_env("OPENCLAW_ENABLE") or get_env("OPENCLAW_ENABLED")
             if env_enabled is not None:
                 cls._enabled = env_enabled.lower() in ("1", "true", "yes")
             else:

@@ -47,18 +47,20 @@ def setup_config():
     # 从环境变量读取配置
     enable_api_server = os.environ.get("API_SERVER_ENABLE", "").lower() in ("1", "true", "yes")
     enable_xiaozhi = os.environ.get("XIAOZHI_ENABLE", "").lower() in ("1", "true", "yes")
-    enable_openclaw = os.environ.get("OPENCLAW_ENABLED", "").lower() in ("1", "true", "yes")
+    # 兼容 OPENCLAW_ENABLE (新) 和 OPENCLAW_ENABLED (旧)
+    openclaw_env = os.environ.get("OPENCLAW_ENABLE") or os.environ.get("OPENCLAW_ENABLED") or ""
+    enable_openclaw = openclaw_env.lower() in ("1", "true", "yes")
 
     logger.info(f"[Main] Config: XIAOZHI_ENABLE={os.environ.get('XIAOZHI_ENABLE', 'not set')}, "
                 f"API_SERVER_ENABLE={os.environ.get('API_SERVER_ENABLE', 'not set')}, "
-                f"OPENCLAW_ENABLED={os.environ.get('OPENCLAW_ENABLED', 'not set')}")
+                f"OPENCLAW_ENABLE={os.environ.get('OPENCLAW_ENABLE', os.environ.get('OPENCLAW_ENABLED', 'not set'))}")
     logger.info(f"[Main] Using config file: {config_path}")
 
     # 打印模块启用情况
     logger.info("[Main] 模块启用情况:")
     logger.info("小爱指令拦截器启用", module="Main")
     logger.info(
-        f"小智 AI Bridge (支持唤醒和连续对话): {'启用' if enable_xiaozhi else '禁用'}",
+        f"小智 AI Bridge: {'启用' if enable_xiaozhi else '禁用'}",
         module="Main",
     )
     logger.info(
